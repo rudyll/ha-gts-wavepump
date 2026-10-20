@@ -13,6 +13,8 @@ from .const import (
     CHANNEL_MAX,
     CHANNEL_MIN,
     DOMAIN,
+    FEED_TIME_MAX,
+    FEED_TIME_MIN,
     PERIOD_RAW_MAX,
     PERIOD_RAW_MIN,
 )
@@ -29,6 +31,7 @@ async def async_setup_entry(
     async_add_entities(
         [
             PeriodNumber(coordinator),
+            FeedTimeNumber(coordinator),
             ChannelNumber(coordinator),
         ]
     )
@@ -73,6 +76,36 @@ class PeriodNumber(GtsWavePumpEntity, NumberEntity):
         await self.coordinator.device.async_write_named(
             field, protocol.seconds_to_period(value), sw
         )
+        await self.coordinator.async_request_refresh()
+
+
+class FeedTimeNumber(GtsWavePumpEntity, NumberEntity):
+    """Feed duration in seconds (used by the Feed button)."""
+
+    _attr_translation_key = "feed_time"
+    _attr_icon = "mdi:timer-sand"
+    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_native_min_value = FEED_TIME_MIN
+    _attr_native_max_value = FEED_TIME_MAX
+    _attr_native_step = 1
+    _attr_mode = NumberMode.BOX
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator: GtsWavePumpCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.device.address}_feed_time"
+
+    @property
+    def native_value(self) -> float | None:
+        data = self.coordinator.data
+        if data is None:
+            return None
+        value = data.config.get("feed_time")
+        return None if value is None else float(value)
+
+    async def async_set_native_value(self, value: float) -> None:
+        sw = self.coordinator.data.software_version if self.coordinator.data else None
+        await self.coordinator.device.async_write_named("feed_time", int(value), sw)
         await self.coordinator.async_request_refresh()
 
 

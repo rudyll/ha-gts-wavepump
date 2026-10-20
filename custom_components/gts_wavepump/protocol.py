@@ -140,6 +140,9 @@ def build_config_v2_write(name: str, value: int) -> bytes:
 # Water-flow waveforms (manual_mode / current_mode values). 5 is "feed", 7 is
 # "off" and are not selectable power banks.
 MANUAL_MODES = (1, 2, 3, 4, 6)
+# Special manual_mode values that are actions rather than waveforms.
+MODE_FEED = 5
+MODE_OFF = 7
 MODE_NAMES = {
     1: "constant",
     2: "pulse",

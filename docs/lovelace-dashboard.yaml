@@ -55,6 +55,18 @@ cards:
         name: Reverse flow
       - entity: switch.gts_wavepump_24_42_e3_60_4f_10_light
         name: Light
+
+  # --- feed (喂食) ---
+  - type: entities
+    entities:
+      - entity: button.gts_wavepump_24_42_e3_60_4f_10_feed
+        name: Feed
+      - entity: number.gts_wavepump_24_42_e3_60_4f_10_feed_time
+        name: Feed time
+
+  # --- diagnostics ---
+  - type: entities
+    entities:
       - entity: number.gts_wavepump_24_42_e3_60_4f_10_communication_channel
         name: Communication channel
       - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_firmware_version

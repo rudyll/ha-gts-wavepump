@@ -69,6 +69,10 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
 
     @property
     def is_on(self) -> bool | None:
+        if self.coordinator.data is None:
+            return None
+        if self._current_mode == protocol.MODE_OFF:
+            return False
         power = self._current_power
         if power is None:
             return None
@@ -87,7 +91,7 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
 
     async def async_set_percentage(self, percentage: int) -> None:
         if percentage <= 0:
-            await self._async_write_power(0)
+            await self._async_off()
             return
         await self._async_write_power(min(POWER_MAX, percentage))
 
@@ -102,8 +106,14 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        # TODO(calibrate): use the app's dedicated 关机 command instead of power 0.
-        await self._async_write_power(0)
+        await self._async_off()
+
+    async def _async_off(self) -> None:
+        """Turn the pump off with the app's dedicated 关机 (manual_mode = 7)."""
+        await self.coordinator.device.async_write_named(
+            "manual_mode", protocol.MODE_OFF, self._software_version
+        )
+        await self.coordinator.async_request_refresh()
 
     async def _async_write_power(self, raw_power: int) -> None:
         """Force manual mode, re-assert the waveform, then set its bank power."""

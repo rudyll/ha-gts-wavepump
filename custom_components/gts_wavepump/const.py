@@ -95,6 +95,10 @@ RUN_MODE_OPTIONS = {
     2: "tide",
 }
 
+# feed_time (seconds) range for the number entity.
+FEED_TIME_MIN = 1
+FEED_TIME_MAX = 60
+
 # manual_period raw range for the number entity (seconds = raw / 100).
 # TODO(calibrate): confirm the true raw min/max.
 PERIOD_RAW_MIN = 1

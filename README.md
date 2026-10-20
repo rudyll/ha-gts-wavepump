@@ -43,7 +43,9 @@ auto-discovered over Bluetooth (advertised name `GTS_WAVE20_<serial>`, e.g.
 | `select` Run mode | Manual / Tide | `manual_or_auto` |
 | `select` Wave mode | Constant/Pulse/Sine/Turbulence/Surge | `manual_mode` |
 | `number` Wave period | Seconds | active `manual_period` bank |
+| `number` Feed time | Seconds | `feed_time` |
 | `number` Communication channel | Channel id (config) | `communication_channel` |
+| `button` Feed | Feed now | `manual_mode` = 5 |
 | `switch` Reverse flow | Direct / reverse | `forward_or_reverse` |
 | `binary_sensor` Light | On / off (read-only) | `light_on` (2=on/1=off) |
 | `sensor` Temperature | °C | heartbeat `current_temp` |
@@ -59,10 +61,9 @@ software_version 17.
 Notes:
 - Setting intensity or a waveform **forces manual mode** (the pump leaves its
   tidal schedule), mirroring how direct control works in the app.
-- The pump's **on/off** here writes power 0 (the app's dedicated 关机 command is
-  a TODO). The **feed** scheduling and **tidal curve** editor are not exposed.
-- The controller **light** is read-only: its state is reliable, but writing
-  `light_on` over BLE has no effect on this unit (the wired controller owns it).
+- **On/off** uses the app's real commands: off is `manual_mode` = 7 (关机),
+  on restores a waveform at the set power. Mode 5 is **feed** (the Feed button).
+- The 24-segment **tidal curve** editor is not exposed yet.
 
 ## How it works
 

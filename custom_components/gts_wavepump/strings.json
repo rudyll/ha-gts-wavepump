@@ -19,6 +19,11 @@
     }
   },
   "entity": {
+    "button": {
+      "feed": {
+        "name": "Feed"
+      }
+    },
     "select": {
       "water_mode": {
         "name": "Wave mode",
@@ -41,6 +46,9 @@
     "number": {
       "period": {
         "name": "Wave period"
+      },
+      "feed_time": {
+        "name": "Feed time"
       },
       "channel": {
         "name": "Communication channel"
