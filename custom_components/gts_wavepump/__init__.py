@@ -134,9 +134,22 @@ class GtsWavePumpCoordinator(DataUpdateCoordinator[protocol.HeartbeatStatus]):
 
     async def _async_update_data(self) -> protocol.HeartbeatStatus:
         try:
-            return await self.device.async_get_status()
+            status = await self.device.async_get_status()
         except protocol.InvalidFrameError as err:
             raise UpdateFailed(f"malformed response: {err}") from err
+        # Calibration aid: enable debug logging for this integration and drive
+        # the official app to watch how these raw values map to app labels
+        # (mode names, period seconds, power %). See README "Not yet calibrated".
+        _LOGGER.debug(
+            "heartbeat sw=%s mode=%s power=%s temp=%sC period=%s err=%s",
+            status.software_version,
+            status.current_mode,
+            status.current_power,
+            status.current_temp,
+            status.current_period,
+            status.error_code,
+        )
+        return status
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
