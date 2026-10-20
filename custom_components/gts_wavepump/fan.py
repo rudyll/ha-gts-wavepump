@@ -1,34 +1,28 @@
 """Fan entity for the GTS L20 wave pump.
 
-The pump's on/off and intensity are both mapped onto the ``manual_power``
-field (interface 1, field 4): 0 == off, 1..100 == running intensity.
+On/off and intensity map onto the pump's manual power. On new-firmware devices
+(software_version > 4) the live power lives in a per-mode bank
+``manual_power_<manual_mode>`` and only applies in manual mode, so setting
+intensity here: (1) forces manual mode, (2) re-asserts the current waveform,
+(3) writes that bank's power. See protocol.py for the field tables.
 
-TODO(calibrate): confirm the real manual_power range/unit and whether a
-dedicated on/off (e.g. master_or_slave / manual_or_auto) exists. Until then we
-treat power 0 as off and 1-100 as the running percentage. See §10 of the
-protocol doc.
+TODO(calibrate): the app displays current_power + 20 on sw > 4 and the real raw
+ceiling may be ~80, not 100; we currently map the HA percentage 1:1 onto the
+raw value. Also "off" here is power 0, not the app's dedicated 关机 command.
 """
 
 from __future__ import annotations
 
-import math
 from typing import Any
 
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.util.percentage import (
-    percentage_to_ranged_value,
-    ranged_value_to_percentage,
-)
 
 from . import GtsWavePumpCoordinator, protocol
 from .const import DOMAIN, POWER_DEFAULT_ON, POWER_MAX, POWER_MIN
 from .entity import GtsWavePumpEntity
-
-# (min, max) of the raw manual_power value; min excludes 0 (which is "off").
-_POWER_RANGE = (POWER_MIN + 1, POWER_MAX)
 
 
 async def async_setup_entry(
@@ -56,6 +50,18 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         self._attr_unique_id = coordinator.device.address
 
     @property
+    def _software_version(self) -> int | None:
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.software_version
+
+    @property
+    def _current_mode(self) -> int | None:
+        if self.coordinator.data is None:
+            return None
+        return self.coordinator.data.current_mode
+
+    @property
     def _current_power(self) -> int | None:
         if self.coordinator.data is None:
             return None
@@ -73,20 +79,17 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         power = self._current_power
         if power is None:
             return None
-        if power <= 0:
-            return 0
-        return ranged_value_to_percentage(_POWER_RANGE, power)
+        return max(POWER_MIN, min(POWER_MAX, power))
 
     @property
     def speed_count(self) -> int:
         return POWER_MAX - POWER_MIN
 
     async def async_set_percentage(self, percentage: int) -> None:
-        if percentage == 0:
-            await self._async_set_power(0)
+        if percentage <= 0:
+            await self._async_write_power(0)
             return
-        power = math.ceil(percentage_to_ranged_value(_POWER_RANGE, percentage))
-        await self._async_set_power(power)
+        await self._async_write_power(min(POWER_MAX, percentage))
 
     async def async_turn_on(
         self,
@@ -94,16 +97,29 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         preset_mode: str | None = None,
         **kwargs: Any,
     ) -> None:
-        if percentage is not None:
-            await self.async_set_percentage(percentage)
-            return
-        await self._async_set_power(POWER_DEFAULT_ON)
+        await self._async_write_power(
+            percentage if percentage is not None else POWER_DEFAULT_ON
+        )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
-        await self._async_set_power(0)
+        # TODO(calibrate): use the app's dedicated 关机 command instead of power 0.
+        await self._async_write_power(0)
 
-    async def _async_set_power(self, power: int) -> None:
-        await self.coordinator.device.async_write_field(
-            protocol.FIELD_MANUAL_POWER, power
+    async def _async_write_power(self, raw_power: int) -> None:
+        """Force manual mode, re-assert the waveform, then set its bank power."""
+        sw = self._software_version
+        mode = self._current_mode
+        if mode not in protocol.MANUAL_MODES:
+            mode = protocol.MANUAL_MODES[0]
+        device = self.coordinator.device
+        # 1) ensure manual mode so manual power actually applies
+        await device.async_write_named(
+            "manual_or_auto", protocol.MANUAL_OR_AUTO_MANUAL, sw
+        )
+        # 2) re-assert the current waveform as the active manual mode
+        await device.async_write_named("manual_mode", mode, sw)
+        # 3) write that mode's power bank
+        await device.async_write_named(
+            protocol.power_field_name(mode, sw), raw_power, sw
         )
         await self.coordinator.async_request_refresh()

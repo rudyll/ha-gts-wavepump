@@ -17,7 +17,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import GtsWavePumpCoordinator, protocol
+from . import GtsWavePumpCoordinator
 from .const import DOMAIN, REVERSE_OFF, REVERSE_ON
 from .entity import GtsWavePumpEntity
 
@@ -55,8 +55,13 @@ class GtsWavePumpReverseSwitch(GtsWavePumpEntity, SwitchEntity):
 
     async def _async_set_reverse(self, reverse: bool) -> None:
         value = REVERSE_ON if reverse else REVERSE_OFF
-        await self.coordinator.device.async_write_field(
-            protocol.FIELD_FORWARD_OR_REVERSE, value
+        sw = (
+            self.coordinator.data.software_version
+            if self.coordinator.data is not None
+            else None
+        )
+        await self.coordinator.device.async_write_named(
+            "forward_or_reverse", value, sw
         )
         self._is_on = reverse
         self.async_write_ha_state()

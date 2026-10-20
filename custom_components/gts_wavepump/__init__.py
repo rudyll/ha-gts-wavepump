@@ -163,9 +163,18 @@ class GtsWavePumpDevice:
         return protocol.parse_heartbeat(response)
 
     async def async_write_field(self, field: int, value: int) -> None:
-        """Write a single config field (interface 1)."""
+        """Write a single config field by raw interface-1 id."""
         await self._send(
             protocol.build_write_field(field, value), expect_response=True
+        )
+
+    async def async_write_named(
+        self, name: str, value: int, software_version: int | None
+    ) -> None:
+        """Write a named config field, resolving its id for this version."""
+        await self._send(
+            protocol.build_config_write(name, value, software_version),
+            expect_response=True,
         )
 
     async def async_disconnect(self) -> None:

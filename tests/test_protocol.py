@@ -91,3 +91,41 @@ def test_parse_heartbeat_rejects_wrong_interface():
     frame = protocol.build_write_field(protocol.FIELD_MANUAL_POWER, 50)
     with pytest.raises(protocol.InvalidFrameError):
         protocol.parse_heartbeat(frame)
+
+
+def test_uses_new_table_boundary():
+    assert protocol.uses_new_table(17) is True
+    assert protocol.uses_new_table(5) is True
+    assert protocol.uses_new_table(4) is False
+    assert protocol.uses_new_table(None) is False
+
+
+def test_resolve_field_id_old_vs_new():
+    # manual_power: Zc id 4; forward_or_reverse: Zc 79 vs Jc req 87.
+    assert protocol.resolve_field_id("manual_power", 3) == 4
+    assert protocol.resolve_field_id("forward_or_reverse", 3) == 79
+    assert protocol.resolve_field_id("forward_or_reverse", 17) == 87
+
+
+def test_power_field_name_banks():
+    # Old device: single manual_power.
+    assert protocol.power_field_name(6, 3) == "manual_power"
+    # New device: per-mode bank; surge (mode 6) -> manual_power_6.
+    assert protocol.power_field_name(6, 17) == "manual_power_6"
+    # Unknown/invalid mode falls back to the first valid bank.
+    assert protocol.power_field_name(5, 17) == "manual_power_1"
+    assert protocol.power_field_name(None, 17) == "manual_power_1"
+
+
+def test_build_config_write_resolves_by_version():
+    # surge power bank on a new device -> req id 12.
+    frame = protocol.build_config_write("manual_power_6", 40, 17)
+    assert list(frame) == [250, 1, 12, 40, (250 + 1 + 12 + 40) % 255]
+    # same logical field on an old device uses Zc manual_power id 4.
+    frame_old = protocol.build_config_write("manual_power", 40, 3)
+    assert list(frame_old) == [250, 1, 4, 40, (250 + 1 + 4 + 40) % 255]
+
+
+def test_resolve_field_id_unknown_raises():
+    with pytest.raises(protocol.InvalidFrameError):
+        protocol.resolve_field_id("manual_power_5", 17)  # no bank 5

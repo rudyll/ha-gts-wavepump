@@ -46,28 +46,27 @@ RESPONSE_TIMEOUT = 5.0
 
 # --- Value ranges -----------------------------------------------------------
 #
-# manual_power is a 0-100 percentage. The official WeChat mini-program shows
-# "功率: 65%" on a 0-100 slider, so the 0-100 assumption is confirmed; what is
-# still unconfirmed is whether 0 truly stops the pump or whether there is a
-# separate on/off command (the app has a distinct "关机" button).
-# TODO(calibrate): confirm 0 == off vs. a dedicated power/master off command.
+# manual_power raw value. We map the HA fan percentage 1:1 onto this raw value.
+# NOTE: on new-table devices (software_version > 4) the official app DISPLAYS
+# current_power + 20 (app-service.js: `software_version>4 && t!==0 && t+=20`),
+# so our raw percentage reads ~20 lower than the app's number, and the real raw
+# ceiling may be ~80 rather than 100.
+# TODO(calibrate): confirm the raw max and whether to apply the +20 display
+#   offset so HA matches the app's percentage.
 POWER_MIN = 0
 POWER_MAX = 100
 # Power used when turning the pump on without an explicit percentage.
-POWER_DEFAULT_ON = 100
+POWER_DEFAULT_ON = 80
 
-# Observations from the official app, folded in to guide later calibration
-# (not yet wired to entities in this skeleton):
-#   - current_temp (heartbeat res[6]) is degrees Celsius directly (app: 34°C).
-#   - manual_period is a time in SECONDS, not a step index (app: 0.670S /
-#     1.300S on a slider). The raw->seconds mapping still needs a capture.
-#   - manual_mode / current_mode selects one of 5 manual waveforms shown in the
-#     app: 恒定 / 脉动 / 正弦 / 乱流 / 涌浪 (constant / pulse / sine / turbulence
-#     / surge). Which numeric value maps to which is not yet confirmed.
-# TODO(calibrate): capture these from hardware, then add number/select entities.
+# Confirmed from app-service.js (see protocol.py for the field tables):
+#   - current_temp (heartbeat res[6]) is degrees Celsius directly.
+#   - manual_period is a time in SECONDS (app slider shows 0.670S / 1.300S);
+#     raw->seconds mapping still needs a capture before exposing a number.
+#   - current_mode/manual_mode: 1=constant 2=pulse 3=sine 4=turbulence 5=feed
+#     6=surge 7=off; selectable water banks are {1,2,3,4,6}.
+#   - manual_or_auto: 1=manual, 2=tide(auto). Manual power only takes effect in
+#     manual mode, so the fan forces manual mode when setting intensity.
 
-# forward_or_reverse (field 79): value semantics not yet confirmed from
-# hardware. We treat 1 as "reverse" and 0 as "forward" as a placeholder.
-# TODO(calibrate): confirm which value is forward vs reverse.
-REVERSE_ON = 1
-REVERSE_OFF = 0
+# forward_or_reverse values (Tee={direct:1,reverse:2} in app-service.js).
+REVERSE_ON = 2  # reverse flow
+REVERSE_OFF = 1  # direct (forward) flow

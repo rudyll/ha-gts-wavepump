@@ -52,10 +52,100 @@ FIELD_MANUAL_PERIOD = 5
 FIELD_FORWARD_OR_REVERSE = 79
 FIELD_COMMUNICATION_CHANNEL = 80
 
-# TODO(jc-table): add the Jc field map (manual_power_1..6, manual_period_1..6,
-# per-field req/res ids) for software_version > 4. Structure lives in
-# app-service.js at the `Jc=` definition (offset ~285612). Until then, devices
-# reporting software_version > 4 are handled on a best-effort basis with Zc.
+# --- Version-dependent field tables -----------------------------------------
+#
+# Extracted verbatim from the official app's app-service.js (`Zc=`, `Jc=`).
+# A single-field config write goes over interface 1 (IFACE_WRITE_CONFIG) as
+# [250, 1, id, value, checksum]; the `id` comes from Zc for software_version
+# <= 4 and from Jc[field].req for software_version > 4. Confirmed on hardware
+# (software_version 17 uses the Jc ids).
+
+# software_version > this uses the new Jc table.
+NEW_TABLE_MIN_VERSION = 4
+
+# Zc (old) name -> interface-1 id. Only the fields we use are listed.
+ZC_FIELD_IDS = {
+    "master_or_slave": 1,
+    "manual_or_auto": 2,
+    "manual_mode": 3,
+    "manual_power": 4,
+    "manual_period": 5,
+    "forward_or_reverse": 79,
+    "communication_channel": 80,
+}
+
+# Jc (new) name -> interface-1 req id. Power/period are split into per-mode
+# banks 1,2,3,4,6 (there is no bank 5). Only the fields we use are listed.
+JC_FIELD_REQ = {
+    "master_or_slave": 1,
+    "manual_or_auto": 2,
+    "manual_mode": 3,
+    "manual_power_1": 4,
+    "manual_period_1": 5,
+    "manual_power_2": 6,
+    "manual_period_2": 7,
+    "manual_power_3": 8,
+    "manual_period_3": 9,
+    "manual_power_4": 10,
+    "manual_period_4": 11,
+    "manual_power_6": 12,
+    "manual_period_6": 13,
+    "forward_or_reverse": 87,
+    "communication_channel": 88,
+}
+
+# Water-flow waveforms (manual_mode / current_mode values). 5 is "feed", 7 is
+# "off" and are not selectable power banks.
+MANUAL_MODES = (1, 2, 3, 4, 6)
+MODE_NAMES = {
+    1: "constant",
+    2: "pulse",
+    3: "sine",
+    4: "turbulence",
+    5: "feed",
+    6: "surge",
+    7: "off",
+}
+
+# manual_or_auto values.
+MANUAL_OR_AUTO_MANUAL = 1
+MANUAL_OR_AUTO_TIDE = 2
+# forward_or_reverse values.
+FLOW_DIRECT = 1
+FLOW_REVERSE = 2
+
+
+def uses_new_table(software_version: int | None) -> bool:
+    """True if this software_version uses the Jc table (sw > 4)."""
+    return software_version is not None and software_version > NEW_TABLE_MIN_VERSION
+
+
+def power_field_name(manual_mode: int | None, software_version: int | None) -> str:
+    """Name of the active manual-power field for the given mode/version.
+
+    On new-table devices the live power lives in ``manual_power_<manual_mode>``
+    (banks 1/2/3/4/6); on old devices there is a single ``manual_power``.
+    """
+    if not uses_new_table(software_version):
+        return "manual_power"
+    mode = manual_mode if manual_mode in MANUAL_MODES else MANUAL_MODES[0]
+    return f"manual_power_{mode}"
+
+
+def resolve_field_id(name: str, software_version: int | None) -> int:
+    """Interface-1 id for a config field name, per software_version."""
+    table = JC_FIELD_REQ if uses_new_table(software_version) else ZC_FIELD_IDS
+    try:
+        return table[name]
+    except KeyError as err:
+        raise InvalidFrameError(
+            f"field {name!r} has no id for software_version={software_version}"
+        ) from err
+
+
+def build_config_write(name: str, value: int, software_version: int | None) -> bytes:
+    """Build an interface-1 write for a named config field."""
+    return build_write_field(resolve_field_id(name, software_version), value)
 
 
 class InvalidFrameError(ValueError):
