@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass, field
 
 from bleak.backends.device import BLEDevice
 from bleak_retry_connector import BleakClientWithServiceCache, establish_connection
@@ -26,7 +27,46 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.FAN, Platform.SWITCH]
+PLATFORMS: list[Platform] = [
+    Platform.FAN,
+    Platform.SELECT,
+    Platform.NUMBER,
+    Platform.SWITCH,
+    Platform.SENSOR,
+]
+
+
+@dataclass
+class PumpState:
+    """Combined pump state: the latest heartbeat plus the full config read.
+
+    Heartbeat fields are exposed as passthrough properties so entities can read
+    ``state.current_power`` etc., while ``config`` holds the parsed read-all
+    (manual_or_auto, manual_mode, per-mode banks, light, channel, ...).
+    """
+
+    heartbeat: "protocol.HeartbeatStatus"
+    config: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def software_version(self) -> int:
+        return self.heartbeat.software_version
+
+    @property
+    def current_mode(self) -> int:
+        return self.heartbeat.current_mode
+
+    @property
+    def current_power(self) -> int:
+        return self.heartbeat.current_power
+
+    @property
+    def current_temp(self) -> int:
+        return self.heartbeat.current_temp
+
+    @property
+    def current_period(self) -> int:
+        return self.heartbeat.current_period
 
 
 class GtsWavePumpDevice:
@@ -162,6 +202,14 @@ class GtsWavePumpDevice:
         assert response is not None
         return protocol.parse_heartbeat(response)
 
+    async def async_read_config(self, software_version: int | None) -> dict[str, int]:
+        """Read the full config (interface 2) and return parsed fields."""
+        response = await self._send(protocol.build_read_config(), expect_response=True)
+        assert response is not None
+        # Temporary diagnostic: full raw config bytes, to locate unknown fields.
+        _LOGGER.debug("config_raw=%s", list(response))
+        return protocol.parse_config(response, software_version)
+
     async def async_write_field(self, field: int, value: int) -> None:
         """Write a single config field by raw interface-1 id."""
         await self._send(
@@ -171,11 +219,17 @@ class GtsWavePumpDevice:
     async def async_write_named(
         self, name: str, value: int, software_version: int | None
     ) -> None:
-        """Write a named config field, resolving its id for this version."""
-        await self._send(
-            protocol.build_config_write(name, value, software_version),
-            expect_response=True,
-        )
+        """Write a named config field, using the path the app uses.
+
+        software_version > 10 devices take config-v2 writes (interface 10);
+        earlier firmware takes single-field interface-1 writes. Verified on
+        hardware that the light only responds to the config-v2 path.
+        """
+        if protocol.uses_config_v2(software_version):
+            frame = protocol.build_config_v2_write(name, value)
+        else:
+            frame = protocol.build_config_write(name, value, software_version)
+        await self._send(frame, expect_response=True)
 
     async def async_disconnect(self) -> None:
         if self._client is not None and self._client.is_connected:
@@ -188,7 +242,7 @@ class GtsWavePumpDevice:
         self._client = None
 
 
-class GtsWavePumpCoordinator(DataUpdateCoordinator[protocol.HeartbeatStatus]):
+class GtsWavePumpCoordinator(DataUpdateCoordinator[PumpState]):
     """Polls pump status and exposes the shared :class:`GtsWavePumpDevice`."""
 
     def __init__(self, hass: HomeAssistant, device: GtsWavePumpDevice) -> None:
@@ -200,24 +254,29 @@ class GtsWavePumpCoordinator(DataUpdateCoordinator[protocol.HeartbeatStatus]):
         )
         self.device = device
 
-    async def _async_update_data(self) -> protocol.HeartbeatStatus:
+    async def _async_update_data(self) -> PumpState:
         try:
             status = await self.device.async_get_status()
         except protocol.InvalidFrameError as err:
             raise UpdateFailed(f"malformed response: {err}") from err
-        # Calibration aid: enable debug logging for this integration and drive
-        # the official app to watch how these raw values map to app labels
-        # (mode names, period seconds, power %). See README "Not yet calibrated".
+        # Config read is best-effort: a transient failure keeps the last config
+        # rather than failing the whole update (heartbeat is the primary data).
+        config: dict[str, int] = self.data.config if self.data else {}
+        try:
+            config = await self.device.async_read_config(status.software_version)
+        except (protocol.InvalidFrameError, UpdateFailed) as err:
+            _LOGGER.debug("config read failed, keeping last: %s", err)
         _LOGGER.debug(
-            "heartbeat sw=%s mode=%s power=%s temp=%sC period=%s err=%s",
+            "heartbeat sw=%s mode=%s power=%s temp=%sC period=%s err=%s | config=%s",
             status.software_version,
             status.current_mode,
             status.current_power,
             status.current_temp,
             status.current_period,
             status.error_code,
+            config,
         )
-        return status
+        return PumpState(heartbeat=status, config=config)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

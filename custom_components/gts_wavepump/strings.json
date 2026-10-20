@@ -19,9 +19,59 @@
     }
   },
   "entity": {
+    "select": {
+      "water_mode": {
+        "name": "Wave mode",
+        "state": {
+          "constant": "Constant",
+          "pulse": "Pulse",
+          "sine": "Sine",
+          "turbulence": "Turbulence",
+          "surge": "Surge"
+        }
+      },
+      "run_mode": {
+        "name": "Run mode",
+        "state": {
+          "manual": "Manual",
+          "tide": "Tide"
+        }
+      }
+    },
+    "number": {
+      "period": {
+        "name": "Wave period"
+      },
+      "channel": {
+        "name": "Communication channel"
+      }
+    },
+    "sensor": {
+      "temperature": {
+        "name": "Temperature"
+      },
+      "flow_mode": {
+        "name": "Flow mode",
+        "state": {
+          "constant": "Constant",
+          "pulse": "Pulse",
+          "sine": "Sine",
+          "turbulence": "Turbulence",
+          "feed": "Feed",
+          "surge": "Surge",
+          "off": "Off"
+        }
+      },
+      "software_version": {
+        "name": "Firmware version"
+      }
+    },
     "switch": {
       "reverse": {
         "name": "Reverse flow"
+      },
+      "light": {
+        "name": "Light"
       }
     }
   }

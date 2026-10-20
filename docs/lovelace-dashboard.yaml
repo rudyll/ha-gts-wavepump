@@ -1,0 +1,61 @@
+# GTS L20 Wave Pump — example Lovelace card (replicates the app's control page).
+#
+# How to use: Dashboards -> (your dashboard) -> Edit -> Add card -> Manual, then
+# paste this. Entity ids below are for device 24:42:E3:60:4F:10 — if yours
+# differs, change the `_24_42_e3_60_4f_10` suffix (see Settings -> Devices).
+#
+# Uses only built-in cards (no custom resources needed). Requires a recent
+# Home Assistant for the tile `features`.
+
+type: vertical-stack
+cards:
+  # --- status header (水流 / 功率 / 核心温度 / 固件) ---
+  - type: glance
+    title: GTS L20 Wave Pump
+    columns: 3
+    entities:
+      - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_flow_mode
+        name: Flow
+      - entity: fan.gts_wavepump_24_42_e3_60_4f_10
+        name: Power
+      - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_temperature
+        name: Temp
+
+  # --- power on/off + intensity slider (功率) ---
+  - type: tile
+    entity: fan.gts_wavepump_24_42_e3_60_4f_10
+    name: Power
+    features:
+      - type: fan-speed
+
+  # --- run mode (手动 / 潮汐) and waveform (恒定/脉动/正弦/乱流/涌浪) ---
+  - type: tile
+    entity: select.gts_wavepump_24_42_e3_60_4f_10_run_mode
+    name: Run mode
+    features:
+      - type: select-options
+  - type: tile
+    entity: select.gts_wavepump_24_42_e3_60_4f_10_wave_mode
+    name: Wave mode
+    features:
+      - type: select-options
+
+  # --- wave period in seconds (周期) ---
+  - type: tile
+    entity: number.gts_wavepump_24_42_e3_60_4f_10_wave_period
+    name: Period (s)
+    features:
+      - type: numeric-input
+        style: slider
+
+  # --- direction + light (正反转 / 灯光) ---
+  - type: entities
+    entities:
+      - entity: switch.gts_wavepump_24_42_e3_60_4f_10_reverse_flow
+        name: Reverse flow
+      - entity: switch.gts_wavepump_24_42_e3_60_4f_10_light
+        name: Light
+      - entity: number.gts_wavepump_24_42_e3_60_4f_10_communication_channel
+        name: Communication channel
+      - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_firmware_version
+        name: Firmware

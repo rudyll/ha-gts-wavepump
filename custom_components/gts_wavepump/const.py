@@ -54,7 +54,10 @@ RESPONSE_TIMEOUT = 5.0
 # TODO(calibrate): confirm the raw max and whether to apply the +20 display
 #   offset so HA matches the app's percentage.
 POWER_MIN = 0
-POWER_MAX = 100
+# Manual power slider in the app is 0..99 (min 0 on sw>=10). The app's home
+# status card displays current_power + 20, but the slider we mirror uses the
+# raw value, so HA percentage == raw power.
+POWER_MAX = 99
 # Power used when turning the pump on without an explicit percentage.
 POWER_DEFAULT_ON = 80
 
@@ -70,3 +73,33 @@ POWER_DEFAULT_ON = 80
 # forward_or_reverse values (Tee={direct:1,reverse:2} in app-service.js).
 REVERSE_ON = 2  # reverse flow
 REVERSE_OFF = 1  # direct (forward) flow
+
+# light_on (field 90): 2=on, 1=off (same 1/2 style as forward_or_reverse).
+# Confirmed by diffing the raw config while toggling the wired-controller light.
+LIGHT_ON = 2
+LIGHT_OFF = 1
+
+# Water-flow waveform options for the manual_mode select (value -> slug).
+# Modes 5 (feed) and 7 (off) are not user-selectable waveforms.
+WATER_MODE_OPTIONS = {
+    1: "constant",
+    2: "pulse",
+    3: "sine",
+    4: "turbulence",
+    6: "surge",
+}
+
+# Run-mode select (manual_or_auto): value -> slug.
+RUN_MODE_OPTIONS = {
+    1: "manual",
+    2: "tide",
+}
+
+# manual_period raw range for the number entity (seconds = raw / 100).
+# TODO(calibrate): confirm the true raw min/max.
+PERIOD_RAW_MIN = 1
+PERIOD_RAW_MAX = 250
+
+# communication_channel range (diagnostic number).
+CHANNEL_MIN = 0
+CHANNEL_MAX = 15

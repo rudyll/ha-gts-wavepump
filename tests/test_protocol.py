@@ -129,3 +129,33 @@ def test_build_config_write_resolves_by_version():
 def test_resolve_field_id_unknown_raises():
     with pytest.raises(protocol.InvalidFrameError):
         protocol.resolve_field_id("manual_power_5", 17)  # no bank 5
+
+
+def test_period_seconds_round_trip():
+    assert protocol.period_to_seconds(67) == 0.67
+    assert protocol.seconds_to_period(1.3) == 130
+    assert protocol.period_field_name(6, 17) == "manual_period_6"
+    assert protocol.period_field_name(3, 3) == "manual_period"
+
+
+def test_parse_config_new_table_uses_res_offsets():
+    # Build a synthetic interface-2 response long enough to cover res offset 90.
+    body = [250, 2] + [0] * 95
+    body[protocol.JC_FIELD_RES["manual_or_auto"]] = 1  # idx 3
+    body[protocol.JC_FIELD_RES["manual_mode"]] = 6  # idx 4
+    body[protocol.JC_FIELD_RES["manual_power_6"]] = 40  # idx 13
+    body[protocol.JC_FIELD_RES["forward_or_reverse"]] = 2  # idx 87
+    body[protocol.JC_FIELD_RES["light_on"]] = 1  # idx 90
+    frame = bytes([*body, protocol.checksum(body)])
+    cfg = protocol.parse_config(frame, 17)
+    assert cfg["manual_or_auto"] == 1
+    assert cfg["manual_mode"] == 6
+    assert cfg["manual_power_6"] == 40
+    assert cfg["forward_or_reverse"] == 2
+    assert cfg["light_on"] == 1
+
+
+def test_parse_config_rejects_wrong_interface():
+    frame = protocol.build_heartbeat()
+    with pytest.raises(protocol.InvalidFrameError):
+        protocol.parse_config(frame, 17)

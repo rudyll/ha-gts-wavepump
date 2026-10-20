@@ -92,7 +92,50 @@ JC_FIELD_REQ = {
     "manual_period_6": 13,
     "forward_or_reverse": 87,
     "communication_channel": 88,
+    "feed_time": 89,
+    "light_on": 90,
 }
+
+# cu (config-v2) name -> TLV field id, used for interface-10 writes on
+# software_version > 10 devices (app-service.js `cu=`, buildDeviceConfigFieldReqV2).
+# A config-v2 write frame is [250, 10, id, value, checksum].
+CU_FIELD_IDS = {
+    "master_or_slave": 1,
+    "manual_or_auto": 2,
+    "manual_mode": 3,
+    "manual_power_1": 4,
+    "manual_period_1": 5,
+    "manual_power_2": 6,
+    "manual_period_2": 7,
+    "manual_power_3": 8,
+    "manual_period_3": 9,
+    "manual_power_4": 10,
+    "manual_period_4": 11,
+    "manual_power_6": 12,
+    "manual_period_6": 13,
+    "forward_or_reverse": 86,
+    "communication_channel": 87,
+    "feed_time": 88,
+    "light_on": 89,
+}
+
+# Devices with software_version > this use config-v2 (interface 10) for writes.
+CONFIG_V2_MIN_VERSION = 10
+
+
+def uses_config_v2(software_version: int | None) -> bool:
+    """True if this device uses config-v2 (interface 10) writes (sw > 10)."""
+    return software_version is not None and software_version > CONFIG_V2_MIN_VERSION
+
+
+def build_config_v2_write(name: str, value: int) -> bytes:
+    """Build an interface-10 (config-v2) single-field write."""
+    try:
+        cid = CU_FIELD_IDS[name]
+    except KeyError as err:
+        raise InvalidFrameError(f"field {name!r} has no config-v2 id") from err
+    return build_frame(IFACE_READ_CONFIG_V2, [cid, value])
+
 
 # Water-flow waveforms (manual_mode / current_mode values). 5 is "feed", 7 is
 # "off" and are not selectable power banks.
@@ -146,6 +189,87 @@ def resolve_field_id(name: str, software_version: int | None) -> int:
 def build_config_write(name: str, value: int, software_version: int | None) -> bytes:
     """Build an interface-1 write for a named config field."""
     return build_write_field(resolve_field_id(name, software_version), value)
+
+
+# Jc (new) name -> response byte offset in a read-all-config (interface 2)
+# response. For sw > 4 the config reply is indexed by these `res` ids
+# (app-service.js: `r[field] = e[Jc[field].res]`).
+JC_FIELD_RES = {
+    "master_or_slave": 2,
+    "manual_or_auto": 3,
+    "manual_mode": 4,
+    "manual_power_1": 5,
+    "manual_period_1": 6,
+    "manual_power_2": 7,
+    "manual_period_2": 8,
+    "manual_power_3": 9,
+    "manual_period_3": 10,
+    "manual_power_4": 11,
+    "manual_period_4": 12,
+    "manual_power_6": 13,
+    "manual_period_6": 14,
+    "forward_or_reverse": 87,
+    "communication_channel": 88,
+    "feed_time": 89,
+    "light_on": 90,
+}
+
+# Zc (old) read-all order: value for Kc[i] sits at response byte i+2
+# (app-service.js: `for(s=2..) r[Kc[s-2]] = e[s]`). Only leading fields listed.
+ZC_READ_ORDER = (
+    "master_or_slave",
+    "manual_or_auto",
+    "manual_mode",
+    "manual_power",
+    "manual_period",
+)
+
+
+def parse_config(frame: Sequence[int], software_version: int | None) -> dict[str, int]:
+    """Parse a read-all-config (interface 2) response into {name: value}.
+
+    Only the fields this integration uses are extracted; missing/short frames
+    yield a partial dict rather than raising on individual fields.
+    """
+    interface, _payload = parse_response(frame)
+    if interface != IFACE_READ_CONFIG:
+        raise InvalidFrameError(f"not a config frame (interface={interface})")
+    result: dict[str, int] = {}
+    if uses_new_table(software_version):
+        for name, idx in JC_FIELD_RES.items():
+            if idx < len(frame):
+                result[name] = frame[idx]
+    else:
+        for i, name in enumerate(ZC_READ_ORDER):
+            idx = i + 2
+            if idx < len(frame):
+                result[name] = frame[idx]
+    return result
+
+
+# --- manual_period <-> seconds ---------------------------------------------
+# The heartbeat current_period and the per-mode manual_period banks are stored
+# in hundredths of a second (raw 67 == 0.67 s, matching the app's "0.670S").
+# TODO(calibrate): confirm the exact min/max of the raw period range.
+PERIOD_SCALE = 100
+
+
+def period_to_seconds(raw: int) -> float:
+    """Convert a raw period value to seconds."""
+    return raw / PERIOD_SCALE
+
+
+def seconds_to_period(seconds: float) -> int:
+    """Convert seconds to a raw period value."""
+    return round(seconds * PERIOD_SCALE)
+
+
+def period_field_name(manual_mode: int | None, software_version: int | None) -> str:
+    """Name of the active manual-period field for the given mode/version."""
+    if not uses_new_table(software_version):
+        return "manual_period"
+    mode = manual_mode if manual_mode in MANUAL_MODES else MANUAL_MODES[0]
+    return f"manual_period_{mode}"
 
 
 class InvalidFrameError(ValueError):

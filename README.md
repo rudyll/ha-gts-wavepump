@@ -35,15 +35,34 @@ auto-discovered over Bluetooth (advertised name `GTS_WAVE20_<serial>`, e.g.
 `GTS_WAVE20_21000580`); confirm the discovery, or add one manually via
 **+ Add integration → GTS L20 Wave Pump**.
 
-## What works today
+## Entities
 
-| Entity | Control | Maps to |
+| Entity | Control / reading | Maps to |
 | --- | --- | --- |
-| `fan` | On/off + intensity % | `manual_power` (field 4) |
-| `switch` | Reverse flow (optimistic) | `forward_or_reverse` (field 79) |
+| `fan` | On/off + intensity % | active `manual_power` bank |
+| `select` Run mode | Manual / Tide | `manual_or_auto` |
+| `select` Wave mode | Constant/Pulse/Sine/Turbulence/Surge | `manual_mode` |
+| `number` Wave period | Seconds | active `manual_period` bank |
+| `number` Communication channel | Channel id (config) | `communication_channel` |
+| `switch` Reverse flow | Direct / reverse | `forward_or_reverse` |
+| `binary_sensor` Light | On / off (read-only) | `light_on` (2=on/1=off) |
+| `sensor` Temperature | °C | heartbeat `current_temp` |
+| `sensor` Flow mode | Running waveform | heartbeat `current_mode` |
+| `sensor` Firmware version | `software_version` (diagnostic) | heartbeat |
 
-State (power, temperature, mode) is polled every 30 s via the heartbeat
-(interface 3).
+Live status is polled every 30 s: the heartbeat (interface 3) gives mode /
+power / temperature / period, and a full config read (interface 2) populates the
+selects, numbers and switch. Protocol field tables (`Zc`/`Jc`) are version-aware
+(`software_version > 4` uses the new `Jc` table); verified on hardware with
+software_version 17.
+
+Notes:
+- Setting intensity or a waveform **forces manual mode** (the pump leaves its
+  tidal schedule), mirroring how direct control works in the app.
+- The pump's **on/off** here writes power 0 (the app's dedicated 关机 command is
+  a TODO). The **feed** scheduling and **tidal curve** editor are not exposed.
+- The controller **light** is read-only: its state is reliable, but writing
+  `light_on` over BLE has no effect on this unit (the wired controller owns it).
 
 ## How it works
 
@@ -57,23 +76,26 @@ Frames are `[250, interface, ...data, checksum]`, `checksum = sum(preceding) %
 255`. All framing/parsing lives in [`protocol.py`](custom_components/gts_wavepump/protocol.py)
 (Home Assistant agnostic, unit-tested in [`tests/test_protocol.py`](tests/test_protocol.py)).
 
-## Not yet calibrated (TODOs)
+## Confirmed from the app (app-service.js)
 
-These need a hardware capture or a full-config read before they can be exposed
-safely; they are marked `TODO(calibrate)` in the code:
+The `Zc`/`Jc` field tables, mode map and value semantics were extracted from the
+official app and verified on hardware:
 
-- **manual_power** is confirmed 0–100 % (the app shows "功率: 65%"), but whether
-  power `0` truly stops the pump or there is a separate on/off command (the app
-  has a dedicated "关机" button) is unconfirmed.
-- **manual_period** is a time in **seconds** (app shows 0.670S / 1.300S); the
-  raw→seconds mapping is not yet captured, so no `number` entity is exposed yet.
-- **manual_mode / current_mode**: 5 waveforms (恒定/脉动/正弦/乱流/涌浪 =
-  constant/pulse/sine/turbulence/surge); the numeric↔name mapping is unconfirmed.
-- **forward_or_reverse** value semantics (which value is forward vs. reverse)
-  are assumed; the reverse switch is therefore optimistic.
-- **software_version > 4** devices use the newer "Jc" field table; this
-  skeleton targets the old "Zc" table. Jc structure is noted in `protocol.py`.
-- Current temperature is reported in °C directly (not yet exposed as a sensor).
+- **manual_power** raw 0–99 (the app's home card displays raw + 20; HA uses the
+  raw value, matching the manual slider). On new firmware the live power is a
+  per-mode bank `manual_power_<manual_mode>` (banks 1/2/3/4/6).
+- **manual_period** = raw / 100 seconds (raw 67 == 0.67 s).
+- **mode** 1=constant 2=pulse 3=sine 4=turbulence 5=feed 6=surge 7=off;
+  **manual_or_auto** 1=manual 2=tide; **forward_or_reverse** 1=direct 2=reverse.
+
+## Remaining TODOs
+
+- **On/off** writes power 0 instead of the app's dedicated 关机 command.
+- **Period** raw min/max not pinned down (a generous range is used).
+- The **24-segment tidal curve** editor, **feed** scheduling and **light** are
+  not exposed.
+- The real device's UART characteristics are swapped vs. the Microchip
+  convention; the integration resolves write/notify by GATT property at connect.
 
 ## Running the tests
 
