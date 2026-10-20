@@ -18,10 +18,10 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from . import protocol
 from .const import (
     DOMAIN,
+    NOTIFY_CHAR_CANDIDATES,
     RESPONSE_TIMEOUT,
-    UART_NOTIFY_CHAR_UUID,
-    UART_WRITE_CHAR_UUID,
     UPDATE_INTERVAL,
+    WRITE_CHAR_CANDIDATES,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +42,8 @@ class GtsWavePumpDevice:
         self._client: BleakClientWithServiceCache | None = None
         self._lock = asyncio.Lock()
         self._notify_future: asyncio.Future[bytes] | None = None
+        self._write_char: str | None = None
+        self._notify_char: str | None = None
 
     @property
     def address(self) -> str:
@@ -67,10 +69,66 @@ class GtsWavePumpDevice:
             ble_device,
             ble_device.name or self._address,
         )
+        self._write_char, self._notify_char = self._resolve_characteristics(
+            self._client
+        )
         await self._client.start_notify(
-            UART_NOTIFY_CHAR_UUID, self._notification_handler
+            self._notify_char, self._notification_handler
         )
         return self._client
+
+    def _resolve_characteristics(
+        self, client: BleakClientWithServiceCache
+    ) -> tuple[str, str]:
+        """Pick write/notify characteristics by their real GATT properties.
+
+        The reverse-engineered UUIDs did not match hardware (the documented
+        notify characteristic lacked the notify property), so resolve against
+        the live GATT table and the candidate lists instead of trusting fixed
+        UUIDs. The full table is logged at debug for calibration.
+        """
+        by_uuid: dict[str, object] = {}
+        for service in client.services:
+            for char in service.characteristics:
+                by_uuid[char.uuid.lower()] = char
+                _LOGGER.debug(
+                    "GATT service=%s char=%s props=%s",
+                    service.uuid,
+                    char.uuid,
+                    char.properties,
+                )
+
+        def _pick(candidates: list[str], wanted: set[str], exclude: str | None):
+            for uuid in candidates:
+                char = by_uuid.get(uuid.lower())
+                if (
+                    char is not None
+                    and char.uuid.lower() != exclude
+                    and wanted & set(char.properties)
+                ):
+                    return char.uuid
+            return None
+
+        notify = _pick(NOTIFY_CHAR_CANDIDATES, {"notify", "indicate"}, None)
+        write = _pick(
+            WRITE_CHAR_CANDIDATES,
+            {"write", "write-without-response"},
+            notify.lower() if notify else None,
+        )
+        if notify is None or write is None:
+            table = [
+                f"{c.uuid}({'/'.join(c.properties)})" for c in by_uuid.values()
+            ]
+            _LOGGER.warning(
+                "Could not resolve UART characteristics (write=%s notify=%s). "
+                "GATT table: %s",
+                write,
+                notify,
+                ", ".join(table),
+            )
+            raise UpdateFailed("no usable write/notify characteristic found")
+        _LOGGER.debug("Using write=%s notify=%s", write, notify)
+        return write, notify
 
     def _notification_handler(self, _char, data: bytearray) -> None:
         if self._notify_future is not None and not self._notify_future.done():
@@ -86,7 +144,7 @@ class GtsWavePumpDevice:
                 self._notify_future = None
             try:
                 await client.write_gatt_char(
-                    UART_WRITE_CHAR_UUID, frame, response=False
+                    self._write_char, frame, response=False
                 )
                 if not expect_response:
                     return None
@@ -112,10 +170,11 @@ class GtsWavePumpDevice:
 
     async def async_disconnect(self) -> None:
         if self._client is not None and self._client.is_connected:
-            try:
-                await self._client.stop_notify(UART_NOTIFY_CHAR_UUID)
-            except Exception:  # noqa: BLE001 - best effort on teardown
-                pass
+            if self._notify_char is not None:
+                try:
+                    await self._client.stop_notify(self._notify_char)
+                except Exception:  # noqa: BLE001 - best effort on teardown
+                    pass
             await self._client.disconnect()
         self._client = None
 

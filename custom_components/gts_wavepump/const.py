@@ -18,6 +18,26 @@ UART_WRITE_CHAR_UUID = "49535343-8841-43f4-a8d4-ecbe34729bb3"
 # ...and receive response frames as notifications on this one.
 UART_NOTIFY_CHAR_UUID = "49535343-1e4d-4bd9-ba61-23c647249616"
 
+# The reverse-engineered doc lists a primary (ISSC 49535343-*) and a backup
+# (FFF0/FFF1/FFF2) UART. On real hardware the roles of the two ISSC
+# characteristics turned out not to match the doc (the documented notify
+# characteristic had no notify property), so instead of trusting fixed UUIDs we
+# resolve the write/notify characteristics at connect time by their actual GATT
+# properties, trying these candidates in order. Roles are included both ways
+# because the two ISSC characteristics can be swapped between devices.
+NOTIFY_CHAR_CANDIDATES = [
+    "49535343-1e4d-4bd9-ba61-23c647249616",
+    "49535343-8841-43f4-a8d4-ecbe34729bb3",
+    "0000fff2-0000-1000-8000-00805f9b34fb",
+    "0000fff1-0000-1000-8000-00805f9b34fb",
+]
+WRITE_CHAR_CANDIDATES = [
+    "49535343-8841-43f4-a8d4-ecbe34729bb3",
+    "49535343-1e4d-4bd9-ba61-23c647249616",
+    "0000fff1-0000-1000-8000-00805f9b34fb",
+    "0000fff2-0000-1000-8000-00805f9b34fb",
+]
+
 # How often the coordinator polls the heartbeat (interface 3).
 UPDATE_INTERVAL = timedelta(seconds=30)
 
