@@ -1,0 +1,28 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "description": "Choose the GTS wave pump to add.",
+        "data": {
+          "address": "Bluetooth device"
+        }
+      },
+      "confirm": {
+        "description": "Do you want to set up {name}?"
+      }
+    },
+    "abort": {
+      "not_supported": "This Bluetooth device is not a GTS wave pump.",
+      "no_devices_found": "No GTS wave pumps found. Make sure the pump is powered on and within range of a Bluetooth adapter or ESP32 BLE proxy.",
+      "already_configured": "This wave pump is already configured."
+    }
+  },
+  "entity": {
+    "switch": {
+      "reverse": {
+        "name": "Reverse flow"
+      }
+    }
+  }
+}
