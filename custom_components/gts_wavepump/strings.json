@@ -18,6 +18,18 @@
       "already_configured": "This wave pump is already configured."
     }
   },
+  "services": {
+    "set_tidal_schedule": {
+      "name": "Set tidal schedule",
+      "description": "Write the 24-segment tidal (auto) schedule in one go.",
+      "fields": {
+        "segments": {
+          "name": "Segments",
+          "description": "List of up to 24 {mode, power, period} segments (period in seconds)."
+        }
+      }
+    }
+  },
   "entity": {
     "button": {
       "feed": {
@@ -72,6 +84,9 @@
       },
       "software_version": {
         "name": "Firmware version"
+      },
+      "tidal_schedule": {
+        "name": "Tidal schedule"
       }
     },
     "switch": {

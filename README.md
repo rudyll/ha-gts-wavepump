@@ -50,7 +50,14 @@ auto-discovered over Bluetooth (advertised name `GTS_WAVE20_<serial>`, e.g.
 | `binary_sensor` Light | On / off (read-only) | `light_on` (2=on/1=off) |
 | `sensor` Temperature | °C | heartbeat `current_temp` |
 | `sensor` Flow mode | Running waveform | heartbeat `current_mode` |
+| `sensor` Tidal schedule | 24-segment curve (read-only, in attributes) | `auto_m/p/t` |
 | `sensor` Firmware version | `software_version` (diagnostic) | heartbeat |
+
+There is also a `gts_wavepump.set_tidal_schedule` service (target the fan
+entity) that writes the whole tidal curve at once — a list of up to 24
+`{mode, power, period}` segments — via a single config-v2 frame, so automations
+can reshape the day's schedule. UI and entity names are localized (English and
+简体中文, following the HA language).
 
 Live status is polled every 30 s: the heartbeat (interface 3) gives mode /
 power / temperature / period, and a full config read (interface 2) populates the
@@ -63,7 +70,9 @@ Notes:
   tidal schedule), mirroring how direct control works in the app.
 - **On/off** uses the app's real commands: off is `manual_mode` = 7 (关机),
   on restores a waveform at the set power. Mode 5 is **feed** (the Feed button).
-- The 24-segment **tidal curve** editor is not exposed yet.
+- The **tidal curve** is read-only as a sensor and writable in bulk via the
+  `set_tidal_schedule` service; there is no per-segment editor UI (use the app
+  for visual editing, or the service from automations).
 
 ## How it works
 

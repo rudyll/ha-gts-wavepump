@@ -159,3 +159,29 @@ def test_parse_config_rejects_wrong_interface():
     frame = protocol.build_heartbeat()
     with pytest.raises(protocol.InvalidFrameError):
         protocol.parse_config(frame, 17)
+
+
+def test_parse_tidal_reads_segments():
+    # Config response: segment i at offsets 15+3i (mode), 16+3i (power), 17+3i.
+    body = [250, 2] + [0] * 95
+    body[15], body[16], body[17] = 1, 40, 67  # segment 0
+    body[18], body[19], body[20] = 3, 60, 130  # segment 1
+    frame = bytes([*body, protocol.checksum(body)])
+    segs = protocol.parse_tidal(frame)
+    assert len(segs) == protocol.TIDAL_SEGMENTS
+    assert segs[0] == protocol.TidalSegment(mode=1, power=40, period=67)
+    assert segs[1] == protocol.TidalSegment(mode=3, power=60, period=130)
+
+
+def test_build_tidal_batch_frame():
+    segs = [
+        protocol.TidalSegment(mode=1, power=40, period=50),
+        protocol.TidalSegment(mode=3, power=60, period=100),
+    ]
+    frame = protocol.build_tidal_batch(segs)
+    # [250, 10, cu_m0, mode, cu_p0, power, cu_t0, period, cu_m1, ...]
+    assert frame[0] == protocol.HEADER
+    assert frame[1] == protocol.IFACE_READ_CONFIG_V2
+    assert list(frame[2:8]) == [14, 1, 15, 40, 16, 50]  # segment 0: ids 14/15/16
+    assert list(frame[8:14]) == [17, 3, 18, 60, 19, 100]  # segment 1: ids 17/18/19
+    assert protocol.is_checksum_valid(frame)

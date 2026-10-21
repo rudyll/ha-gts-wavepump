@@ -1,0 +1,22 @@
+set_tidal_schedule:
+  name: Set tidal schedule
+  description: >-
+    Write the 24-segment tidal (auto) schedule in one go. Each segment is one
+    hour of the day with a waveform, power and period.
+  target:
+    entity:
+      integration: gts_wavepump
+      domain: fan
+  fields:
+    segments:
+      name: Segments
+      description: >-
+        List of up to 24 segments, each {mode, power, period}. mode is the
+        waveform (1=constant, 2=pulse, 3=sine, 4=turbulence, 6=surge), power is
+        0-99, period is seconds.
+      required: true
+      example: |
+        - { mode: 1, power: 40, period: 0.5 }
+        - { mode: 3, power: 60, period: 1.0 }
+      selector:
+        object:

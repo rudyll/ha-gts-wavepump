@@ -48,6 +48,7 @@ class PumpState:
 
     heartbeat: "protocol.HeartbeatStatus"
     config: dict[str, int] = field(default_factory=dict)
+    tidal: "list[protocol.TidalSegment]" = field(default_factory=list)
 
     @property
     def software_version(self) -> int:
@@ -203,13 +204,23 @@ class GtsWavePumpDevice:
         assert response is not None
         return protocol.parse_heartbeat(response)
 
-    async def async_read_config(self, software_version: int | None) -> dict[str, int]:
-        """Read the full config (interface 2) and return parsed fields."""
+    async def async_read_config(
+        self, software_version: int | None
+    ) -> tuple[dict[str, int], "list[protocol.TidalSegment]"]:
+        """Read the full config (interface 2): parsed fields + tidal schedule."""
         response = await self._send(protocol.build_read_config(), expect_response=True)
         assert response is not None
-        # Temporary diagnostic: full raw config bytes, to locate unknown fields.
         _LOGGER.debug("config_raw=%s", list(response))
-        return protocol.parse_config(response, software_version)
+        return (
+            protocol.parse_config(response, software_version),
+            protocol.parse_tidal(response),
+        )
+
+    async def async_write_tidal(
+        self, segments: "list[protocol.TidalSegment]"
+    ) -> None:
+        """Write the whole 24-segment tidal schedule in one config-v2 frame."""
+        await self._send(protocol.build_tidal_batch(segments), expect_response=True)
 
     async def async_write_field(self, field: int, value: int) -> None:
         """Write a single config field by raw interface-1 id."""
@@ -254,6 +265,9 @@ class GtsWavePumpCoordinator(DataUpdateCoordinator[PumpState]):
             update_interval=UPDATE_INTERVAL,
         )
         self.device = device
+        # Shown as the HA device name (prefixes every entity's friendly name);
+        # set to the config entry title in async_setup_entry.
+        self.device_name = device.address
 
     async def _async_update_data(self) -> PumpState:
         try:
@@ -263,8 +277,11 @@ class GtsWavePumpCoordinator(DataUpdateCoordinator[PumpState]):
         # Config read is best-effort: a transient failure keeps the last config
         # rather than failing the whole update (heartbeat is the primary data).
         config: dict[str, int] = self.data.config if self.data else {}
+        tidal = self.data.tidal if self.data else []
         try:
-            config = await self.device.async_read_config(status.software_version)
+            config, tidal = await self.device.async_read_config(
+                status.software_version
+            )
         except (protocol.InvalidFrameError, UpdateFailed) as err:
             _LOGGER.debug("config read failed, keeping last: %s", err)
         _LOGGER.debug(
@@ -277,7 +294,7 @@ class GtsWavePumpCoordinator(DataUpdateCoordinator[PumpState]):
             status.error_code,
             config,
         )
-        return PumpState(heartbeat=status, config=config)
+        return PumpState(heartbeat=status, config=config, tidal=tidal)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -285,6 +302,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     address: str = entry.data[CONF_ADDRESS]
     device = GtsWavePumpDevice(hass, address)
     coordinator = GtsWavePumpCoordinator(hass, device)
+    coordinator.device_name = entry.title
 
     try:
         await coordinator.async_config_entry_first_refresh()

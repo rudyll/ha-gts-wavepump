@@ -1,73 +1,75 @@
-# GTS L20 Wave Pump — example Lovelace card (replicates the app's control page).
+# 狗头鲨 GTS L20 造浪泵 —— Lovelace 示例卡片（复刻 App 控制页）
 #
-# How to use: Dashboards -> (your dashboard) -> Edit -> Add card -> Manual, then
-# paste this. Entity ids below are for device 24:42:E3:60:4F:10 — if yours
-# differs, change the `_24_42_e3_60_4f_10` suffix (see Settings -> Devices).
+# 用法：仪表盘 →（你的仪表盘）→ 编辑 → 添加卡片 → 手动，然后粘贴以下内容。
+# 下面的 entity id 对应设备 24:42:E3:60:4F:10 —— 若你的不同，改掉
+# `_24_42_e3_60_4f_10` 这段后缀（见 设置 → 设备与服务）。
 #
-# Uses only built-in cards (no custom resources needed). Requires a recent
-# Home Assistant for the tile `features`.
+# 仅用内置卡片（无需自定义资源）。tile 的 features 需要较新版本的 HA。
+# 实体名会跟随 HA 语言显示中文（集成已带简体中文翻译）。
 
 type: vertical-stack
 cards:
-  # --- status header (水流 / 功率 / 核心温度 / 固件) ---
+  # --- 状态栏（水流 / 功率 / 核心温度）---
   - type: glance
-    title: GTS L20 Wave Pump
+    title: GTS L20 造浪泵
     columns: 3
     entities:
       - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_flow_mode
-        name: Flow
+        name: 水流
       - entity: fan.gts_wavepump_24_42_e3_60_4f_10
-        name: Power
+        name: 功率
       - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_temperature
-        name: Temp
+        name: 温度
 
-  # --- power on/off + intensity slider (功率) ---
+  # --- 开关 + 功率滑块 ---
   - type: tile
     entity: fan.gts_wavepump_24_42_e3_60_4f_10
-    name: Power
+    name: 功率
     features:
       - type: fan-speed
 
-  # --- run mode (手动 / 潮汐) and waveform (恒定/脉动/正弦/乱流/涌浪) ---
+  # --- 运行模式（手动 / 潮汐）与波形（恒定/脉动/正弦/乱流/涌浪）---
   - type: tile
     entity: select.gts_wavepump_24_42_e3_60_4f_10_run_mode
-    name: Run mode
+    name: 运行模式
     features:
       - type: select-options
   - type: tile
     entity: select.gts_wavepump_24_42_e3_60_4f_10_wave_mode
-    name: Wave mode
+    name: 波形
     features:
       - type: select-options
 
-  # --- wave period in seconds (周期) ---
+  # --- 周期（秒）---
   - type: tile
     entity: number.gts_wavepump_24_42_e3_60_4f_10_wave_period
-    name: Period (s)
+    name: 周期（秒）
     features:
       - type: numeric-input
         style: slider
 
-  # --- direction + light (正反转 / 灯光) ---
+  # --- 反转 / 灯光 ---
   - type: entities
     entities:
       - entity: switch.gts_wavepump_24_42_e3_60_4f_10_reverse_flow
-        name: Reverse flow
+        name: 反转
       - entity: switch.gts_wavepump_24_42_e3_60_4f_10_light
-        name: Light
+        name: 灯光
 
-  # --- feed (喂食) ---
+  # --- 喂食 ---
   - type: entities
     entities:
       - entity: button.gts_wavepump_24_42_e3_60_4f_10_feed
-        name: Feed
+        name: 喂食
       - entity: number.gts_wavepump_24_42_e3_60_4f_10_feed_time
-        name: Feed time
+        name: 喂食时间
 
-  # --- diagnostics ---
+  # --- 诊断 ---
   - type: entities
     entities:
+      - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_tidal_schedule
+        name: 潮汐排程
       - entity: number.gts_wavepump_24_42_e3_60_4f_10_communication_channel
-        name: Communication channel
+        name: 通信频道
       - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_firmware_version
-        name: Firmware
+        name: 固件版本

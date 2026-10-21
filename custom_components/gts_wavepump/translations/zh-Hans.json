@@ -1,0 +1,101 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "description": "选择要添加的 GTS 造浪泵。",
+        "data": {
+          "address": "蓝牙设备"
+        }
+      },
+      "confirm": {
+        "description": "是否要设置 {name}？"
+      }
+    },
+    "abort": {
+      "not_supported": "此蓝牙设备不是 GTS 造浪泵。",
+      "no_devices_found": "未发现 GTS 造浪泵。请确认泵已通电，并在蓝牙适配器或 ESP32 蓝牙代理的覆盖范围内。",
+      "already_configured": "此造浪泵已配置。"
+    }
+  },
+  "services": {
+    "set_tidal_schedule": {
+      "name": "设置潮汐排程",
+      "description": "一次性写入 24 段潮汐（自动）排程。",
+      "fields": {
+        "segments": {
+          "name": "排程段",
+          "description": "最多 24 段 {mode, power, period} 列表（period 为秒）。"
+        }
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "feed": {
+        "name": "喂食"
+      }
+    },
+    "select": {
+      "water_mode": {
+        "name": "波形",
+        "state": {
+          "constant": "恒定",
+          "pulse": "脉动",
+          "sine": "正弦",
+          "turbulence": "乱流",
+          "surge": "涌浪"
+        }
+      },
+      "run_mode": {
+        "name": "运行模式",
+        "state": {
+          "manual": "手动",
+          "tide": "潮汐"
+        }
+      }
+    },
+    "number": {
+      "period": {
+        "name": "周期"
+      },
+      "feed_time": {
+        "name": "喂食时间"
+      },
+      "channel": {
+        "name": "通信频道"
+      }
+    },
+    "sensor": {
+      "temperature": {
+        "name": "温度"
+      },
+      "flow_mode": {
+        "name": "水流模式",
+        "state": {
+          "constant": "恒定",
+          "pulse": "脉动",
+          "sine": "正弦",
+          "turbulence": "乱流",
+          "feed": "喂食",
+          "surge": "涌浪",
+          "off": "关机"
+        }
+      },
+      "software_version": {
+        "name": "固件版本"
+      },
+      "tidal_schedule": {
+        "name": "潮汐排程"
+      }
+    },
+    "switch": {
+      "reverse": {
+        "name": "反转"
+      },
+      "light": {
+        "name": "灯光"
+      }
+    }
+  }
+}

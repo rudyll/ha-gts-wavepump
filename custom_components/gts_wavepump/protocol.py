@@ -275,6 +275,47 @@ def period_field_name(manual_mode: int | None, software_version: int | None) -> 
     return f"manual_period_{mode}"
 
 
+# --- 24-segment tidal schedule ---------------------------------------------
+# Each hourly segment i has a waveform (auto_m), power (auto_p) and period
+# (auto_t). In a config read (interface 2) they sit contiguously from res
+# offset 15: mode=15+3i, power=16+3i, period=17+3i. config-v2 writes use the
+# cu ids: mode=14+3i, power=15+3i, period=16+3i.
+TIDAL_SEGMENTS = 24
+_TIDAL_READ_BASE = 15
+_TIDAL_CU_BASE = 14
+
+
+@dataclass(frozen=True)
+class TidalSegment:
+    """One hourly tidal segment."""
+
+    mode: int
+    power: int
+    period: int  # raw (period seconds = period / PERIOD_SCALE)
+
+
+def parse_tidal(frame: Sequence[int]) -> list[TidalSegment]:
+    """Parse the 24 tidal segments out of a config (interface 2) response."""
+    segments: list[TidalSegment] = []
+    for i in range(TIDAL_SEGMENTS):
+        base = _TIDAL_READ_BASE + 3 * i
+        if base + 2 >= len(frame):
+            break
+        segments.append(
+            TidalSegment(mode=frame[base], power=frame[base + 1], period=frame[base + 2])
+        )
+    return segments
+
+
+def build_tidal_batch(segments: Sequence[TidalSegment]) -> bytes:
+    """Build one config-v2 (interface 10) frame writing all given segments."""
+    payload: list[int] = []
+    for i, seg in enumerate(segments):
+        cu = _TIDAL_CU_BASE + 3 * i
+        payload += [cu, seg.mode, cu + 1, seg.power, cu + 2, seg.period]
+    return build_frame(IFACE_READ_CONFIG_V2, payload)
+
+
 class InvalidFrameError(ValueError):
     """Raised when a received frame is malformed or fails validation."""
 

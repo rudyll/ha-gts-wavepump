@@ -22,5 +22,5 @@ class GtsWavePumpEntity(CoordinatorEntity[GtsWavePumpCoordinator]):
             identifiers={(DOMAIN, address)},
             manufacturer="GTS (Goutousha)",
             model="L20 Wave Pump",
-            name=coordinator.name,
+            name=coordinator.device_name,
         )

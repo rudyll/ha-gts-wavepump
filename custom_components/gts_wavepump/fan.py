@@ -15,14 +15,26 @@ from __future__ import annotations
 
 from typing import Any
 
+import voluptuous as vol
+
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import GtsWavePumpCoordinator, protocol
 from .const import DOMAIN, POWER_DEFAULT_ON, POWER_MAX, POWER_MIN
 from .entity import GtsWavePumpEntity
+
+SERVICE_SET_TIDAL_SCHEDULE = "set_tidal_schedule"
+_SEGMENT_SCHEMA = vol.Schema(
+    {
+        vol.Required("mode"): vol.In(protocol.MANUAL_MODES),
+        vol.Required("power"): vol.All(vol.Coerce(int), vol.Range(min=0, max=POWER_MAX)),
+        vol.Required("period"): vol.All(vol.Coerce(float), vol.Range(min=0, max=60)),
+    }
+)
 
 
 async def async_setup_entry(
@@ -33,6 +45,19 @@ async def async_setup_entry(
     """Set up the wave pump fan entity."""
     coordinator: GtsWavePumpCoordinator = hass.data[DOMAIN][entry.entry_id]
     async_add_entities([GtsWavePumpFan(coordinator)])
+
+    platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_SET_TIDAL_SCHEDULE,
+        {
+            vol.Required("segments"): vol.All(
+                cv.ensure_list,
+                [_SEGMENT_SCHEMA],
+                vol.Length(min=1, max=protocol.TIDAL_SEGMENTS),
+            )
+        },
+        "async_set_tidal_schedule",
+    )
 
 
 class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
@@ -113,6 +138,19 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         await self.coordinator.device.async_write_named(
             "manual_mode", protocol.MODE_OFF, self._software_version
         )
+        await self.coordinator.async_request_refresh()
+
+    async def async_set_tidal_schedule(self, segments: list[dict]) -> None:
+        """Service: write the tidal schedule (list of {mode, power, period_s})."""
+        segs = [
+            protocol.TidalSegment(
+                mode=s["mode"],
+                power=s["power"],
+                period=protocol.seconds_to_period(s["period"]),
+            )
+            for s in segments
+        ]
+        await self.coordinator.device.async_write_tidal(segs)
         await self.coordinator.async_request_refresh()
 
     async def _async_write_power(self, raw_power: int) -> None:
