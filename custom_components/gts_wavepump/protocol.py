@@ -117,6 +117,10 @@ CU_FIELD_IDS = {
     "communication_channel": 87,
     "feed_time": 88,
     "light_on": 89,
+    # NOTE: the 3 scheduled-feeding slots are read-only here. Their config-v2
+    # write ids are NOT 91..102 (writing those corrupts neighbouring bytes), and
+    # the extracted cu table only covered one interval, so write support needs
+    # the real per-slot cu ids re-extracted from the app.
 }
 
 # Devices with software_version > this use config-v2 (interface 10) for writes.
@@ -215,7 +219,23 @@ JC_FIELD_RES = {
     "communication_channel": 88,
     "feed_time": 89,
     "light_on": 90,
+    # Scheduled feeding: 3 slots x {enable, hour, minute, duration} at 91..102.
+    "feed1_enable": 91,
+    "feed1_hour": 92,
+    "feed1_minute": 93,
+    "feed1_duration": 94,
+    "feed2_enable": 95,
+    "feed2_hour": 96,
+    "feed2_minute": 97,
+    "feed2_duration": 98,
+    "feed3_enable": 99,
+    "feed3_hour": 100,
+    "feed3_minute": 101,
+    "feed3_duration": 102,
 }
+
+# Number of scheduled-feeding slots.
+FEED_SLOTS = 3
 
 # Zc (old) read-all order: value for Kc[i] sits at response byte i+2
 # (app-service.js: `for(s=2..) r[Kc[s-2]] = e[s]`). Only leading fields listed.

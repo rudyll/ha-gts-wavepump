@@ -30,6 +30,7 @@ async def async_setup_entry(
             FlowModeSensor(coordinator),
             FirmwareSensor(coordinator),
             TidalScheduleSensor(coordinator),
+            FeedScheduleSensor(coordinator),
         ]
     )
 
@@ -104,6 +105,55 @@ class TidalScheduleSensor(GtsWavePumpEntity, SensorEntity):
                 for i, seg in enumerate(self.coordinator.data.tidal)
             ]
         }
+
+
+class FeedScheduleSensor(GtsWavePumpEntity, SensorEntity):
+    """Scheduled-feeding slots (read-only; enable with the Feed slot switches).
+
+    State is the number of enabled slots; the `slots` attribute lists each
+    slot's enabled flag, time (HH:MM) and duration (minutes).
+    """
+
+    _attr_translation_key = "feed_schedule"
+    _attr_icon = "mdi:calendar-clock"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: GtsWavePumpCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.device.address}_feed_schedule"
+
+    def _slots(self) -> list[dict[str, object]]:
+        cfg = self.coordinator.data.config if self.coordinator.data else {}
+        slots = []
+        for s in range(1, protocol.FEED_SLOTS + 1):
+            hour = cfg.get(f"feed{s}_hour")
+            minute = cfg.get(f"feed{s}_minute")
+            time = (
+                f"{hour:02d}:{minute:02d}"
+                if isinstance(hour, int) and isinstance(minute, int) and hour < 24
+                else None
+            )
+            slots.append(
+                {
+                    "slot": s,
+                    "enabled": cfg.get(f"feed{s}_enable") == 1,
+                    "time": time,
+                    "duration_min": cfg.get(f"feed{s}_duration"),
+                }
+            )
+        return slots
+
+    @property
+    def native_value(self) -> int | None:
+        if self.coordinator.data is None:
+            return None
+        return sum(1 for s in self._slots() if s["enabled"])
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object] | None:
+        if self.coordinator.data is None:
+            return None
+        return {"slots": self._slots()}
 
 
 class FirmwareSensor(GtsWavePumpEntity, SensorEntity):

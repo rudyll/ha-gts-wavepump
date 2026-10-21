@@ -87,6 +87,9 @@
       },
       "tidal_schedule": {
         "name": "Tidal schedule"
+      },
+      "feed_schedule": {
+        "name": "Feed schedule"
       }
     },
     "switch": {

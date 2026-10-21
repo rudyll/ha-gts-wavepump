@@ -87,6 +87,9 @@
       },
       "tidal_schedule": {
         "name": "潮汐排程"
+      },
+      "feed_schedule": {
+        "name": "定时喂食"
       }
     },
     "switch": {

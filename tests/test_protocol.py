@@ -173,6 +173,20 @@ def test_parse_tidal_reads_segments():
     assert segs[1] == protocol.TidalSegment(mode=3, power=60, period=130)
 
 
+def test_parse_config_reads_feed_slots():
+    body = [250, 2] + [0] * 95
+    # slot1 enable/hour/min/dur at 91..94, slot2 at 95..98, slot3 at 99..102
+    body[91], body[92], body[93], body[94] = 1, 8, 15, 3
+    body[99], body[100], body[101], body[102] = 1, 21, 34, 12
+    frame = bytes([*body, protocol.checksum(body)])
+    cfg = protocol.parse_config(frame, 17)
+    assert cfg["feed1_enable"] == 1
+    assert cfg["feed1_hour"] == 8
+    assert cfg["feed1_duration"] == 3
+    assert cfg["feed3_hour"] == 21
+    assert cfg["feed3_duration"] == 12
+
+
 def test_build_tidal_batch_frame():
     segs = [
         protocol.TidalSegment(mode=1, power=40, period=50),
