@@ -1,8 +1,10 @@
-# GTS L20 Wave Pump — Home Assistant (local BLE)
+# GTS Wave Pump — Home Assistant (local BLE)
 
-A Home Assistant custom integration for the **狗头鲨 (Goutousha) GTS L20** wave
-pump, controlled **locally over Bluetooth Low Energy**. No vendor cloud, no
-Aliyun MQTT, no API keys.
+A Home Assistant custom integration for **狗头鲨 (Goutousha) GTS** wave pumps —
+**L20 and L40** — controlled **locally over Bluetooth Low Energy**. A local,
+cloud-free replacement for the GTS Aqua app: no vendor cloud, no Aliyun MQTT, no
+API keys. Both models share the same BLE protocol and are auto-discovered
+(`GTS_WAVE20_*` / `GTS_WAVE40_*`), with the model shown on the device.
 
 The pump exposes no local network service on Wi-Fi (Wi-Fi is used only to reach
 the vendor's Aliyun MQTT broker), so local control is BLE-only. The BLE link

@@ -21,6 +21,6 @@ class GtsWavePumpEntity(CoordinatorEntity[GtsWavePumpCoordinator]):
             connections={("bluetooth", address)},
             identifiers={(DOMAIN, address)},
             manufacturer="GTS (Goutousha)",
-            model="L20 Wave Pump",
+            model=f"{coordinator.model} Wave Pump",
             name=coordinator.device_name,
         )

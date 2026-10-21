@@ -23,6 +23,23 @@ protocol = importlib.util.module_from_spec(_spec)
 sys.modules[_spec.name] = protocol
 _spec.loader.exec_module(protocol)
 
+_CONST_PATH = _PROTOCOL_PATH.parent / "const.py"
+_cspec = importlib.util.spec_from_file_location("gts_const", _CONST_PATH)
+const = importlib.util.module_from_spec(_cspec)
+sys.modules[_cspec.name] = const
+_cspec.loader.exec_module(const)
+
+
+def test_name_match_and_model():
+    assert const.is_wave_pump_name("GTS_WAVE20_21000580") is True
+    assert const.is_wave_pump_name("GTS_WAVE40_12345678") is True
+    assert const.is_wave_pump_name("GTS_WAVE20_123") is False  # not 8 digits
+    assert const.is_wave_pump_name("SomethingElse") is False
+    assert const.is_wave_pump_name(None) is False
+    assert const.model_from_name("GTS_WAVE20_21000580") == "L20"
+    assert const.model_from_name("GTS_WAVE40_12345678") == "L40"
+    assert const.model_from_name("GTS_WAVE60_00000001") == "Wave60"
+
 
 def test_checksum_is_sum_mod_255():
     assert protocol.checksum([250, 1, 4, 50]) == 50  # 305 % 255
@@ -174,7 +191,7 @@ def test_parse_tidal_reads_segments():
 
 
 def test_parse_config_reads_feed_slots():
-    body = [250, 2] + [0] * 95
+    body = [250, 2] + [0] * 101  # indices 0..102
     # slot1 enable/hour/min/dur at 91..94, slot2 at 95..98, slot3 at 99..102
     body[91], body[92], body[93], body[94] = 1, 8, 15, 3
     body[99], body[100], body[101], body[102] = 1, 21, 34, 12

@@ -1,4 +1,4 @@
-"""Config flow for the GTS L20 wave pump (local BLE)."""
+"""Config flow for GTS wave pumps (L20 / L40, local BLE)."""
 
 from __future__ import annotations
 
@@ -13,13 +13,12 @@ from homeassistant.components.bluetooth import (
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_ADDRESS
 
-from .const import DOMAIN, NAME_PREFIX
+from .const import DOMAIN, is_wave_pump_name
 
 
 def _is_wave_pump(discovery_info: BluetoothServiceInfoBleak) -> bool:
-    """Match only devices whose advertised name is ours."""
-    name = discovery_info.name or ""
-    return name.startswith(NAME_PREFIX)
+    """Match only GTS wave pumps (any model: L20 / L40 / ...)."""
+    return is_wave_pump_name(discovery_info.name)
 
 
 class GtsWavePumpConfigFlow(ConfigFlow, domain=DOMAIN):

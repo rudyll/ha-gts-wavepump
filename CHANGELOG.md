@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+Support the whole GTS wave-pump line, not just the L20 — a local replacement for
+the GTS Aqua app across models.
+
+- **L40 support**: discovery now matches `GTS_WAVE*` (L20 `GTS_WAVE20_*` and L40
+  `GTS_WAVE40_*`), which share the same BLE protocol. The model (L20 / L40) is
+  detected from the advertised name and shown on the device.
+- Integration renamed to "GTS Wave Pump" (generic).
+
 ## 0.2.0
 
 First HACS release. Local BLE control of the GTS L20 wave pump, verified on

@@ -1,14 +1,30 @@
-"""Constants for the GTS L20 wave pump integration."""
+"""Constants for the GTS wave pump integration (L20 / L40)."""
 
 from __future__ import annotations
 
+import re
 from datetime import timedelta
 
 DOMAIN = "gts_wavepump"
 
-# BLE advertising name prefix. Only devices whose name starts with this are
-# ours, e.g. ``GTS_WAVE20_21000580``.
-NAME_PREFIX = "GTS_WAVE20_"
+# BLE advertising names: GTS_WAVE20_<8-digit serial> (L20) and GTS_WAVE40_...
+# (L40). Both share the same GATT/protocol, so one integration covers the line.
+NAME_PREFIX = "GTS_WAVE"
+_NAME_RE = re.compile(r"^GTS_WAVE(\d{2})_(\d{8})$")
+_MODEL_BY_CODE = {"20": "L20", "40": "L40"}
+
+
+def is_wave_pump_name(name: str | None) -> bool:
+    """True if a BLE name is a GTS wave pump (any model)."""
+    return bool(name and _NAME_RE.match(name))
+
+
+def model_from_name(name: str | None) -> str:
+    """Model label from a BLE name, e.g. GTS_WAVE40_12345678 -> 'L40'."""
+    match = _NAME_RE.match(name or "")
+    if match:
+        return _MODEL_BY_CODE.get(match.group(1), f"Wave{match.group(1)}")
+    return "Wave Pump"
 
 # --- GATT (Microchip / ISSC transparent UART), §8 of the protocol doc -------
 

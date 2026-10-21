@@ -23,6 +23,7 @@ from .const import (
     RESPONSE_TIMEOUT,
     UPDATE_INTERVAL,
     WRITE_CHAR_CANDIDATES,
+    model_from_name,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -268,6 +269,8 @@ class GtsWavePumpCoordinator(DataUpdateCoordinator[PumpState]):
         # Shown as the HA device name (prefixes every entity's friendly name);
         # set to the config entry title in async_setup_entry.
         self.device_name = device.address
+        # Model label (e.g. "L20" / "L40"), set in async_setup_entry.
+        self.model = "Wave Pump"
 
     async def _async_update_data(self) -> PumpState:
         try:
@@ -303,6 +306,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     device = GtsWavePumpDevice(hass, address)
     coordinator = GtsWavePumpCoordinator(hass, device)
     coordinator.device_name = entry.title
+    coordinator.model = model_from_name(entry.title)
 
     try:
         await coordinator.async_config_entry_first_refresh()
