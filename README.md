@@ -45,10 +45,11 @@ auto-discovered over Bluetooth (advertised name `GTS_WAVE20_<serial>`, e.g.
 | `select` Run mode | Manual / Tide | `manual_or_auto` |
 | `select` Wave mode | Constant/Pulse/Sine/Turbulence/Surge | `manual_mode` |
 | `number` Wave period | Seconds | active `manual_period` bank |
-| `number` Feed time | Seconds | `feed_time` |
+| `number` Feed time | Minutes | `feed_time` |
 | `number` Communication channel | Channel id (config) | `communication_channel` |
 | `button` Feed | Feed now | `manual_mode` = 5 |
 | `switch` Light | On / off | `light_on` (2=on/1=off) |
+| `switch` Feed timer 1/2/3 | Enable/disable a feeding slot | feed-slot enable |
 | `sensor` Temperature | °C | heartbeat `current_temp` |
 | `sensor` Flow mode | Running waveform | heartbeat `current_mode` |
 | `sensor` Tidal schedule | 24-segment curve (read-only, in attributes) | `auto_m/p/t` |
@@ -101,8 +102,8 @@ official app and verified on hardware:
 
 ## Remaining TODOs
 
-- **Scheduled feeding** (`deviceFeedModelInterval*`) and **master/slave** are
-  not exposed yet.
+- **Scheduled feeding**: the three slots can be enabled/disabled from HA; their
+  times are read-only (set them in the app). **master/slave** is not exposed.
 - **Period** raw min/max not pinned down (a generous range is used).
 - **Reverse** (`forward_or_reverse`) is intentionally not exposed: the L20
   firmware removed the reverse feature and the app does not offer it.

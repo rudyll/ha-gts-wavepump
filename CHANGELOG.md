@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- **Scheduled-feeding slot toggles**: three `switch` entities (定时组 1/2/3) to
+  enable/disable the pump's timed-feeding slots. The config-v2 write ids were
+  found by probing and verified on hardware. Slot times are still set in the
+  app (read-only here via the Feed schedule sensor).
+
 ## 0.3.0
 
 Support the whole GTS wave-pump line, not just the L20 — a local replacement for

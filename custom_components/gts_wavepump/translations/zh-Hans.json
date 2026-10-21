@@ -95,6 +95,15 @@
     "switch": {
       "light": {
         "name": "灯光"
+      },
+      "feed_slot_1": {
+        "name": "定时组 1"
+      },
+      "feed_slot_2": {
+        "name": "定时组 2"
+      },
+      "feed_slot_3": {
+        "name": "定时组 3"
       }
     }
   }

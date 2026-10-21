@@ -117,10 +117,12 @@ CU_FIELD_IDS = {
     "communication_channel": 87,
     "feed_time": 88,
     "light_on": 89,
-    # NOTE: the 3 scheduled-feeding slots are read-only here. Their config-v2
-    # write ids are NOT 91..102 (writing those corrupts neighbouring bytes), and
-    # the extracted cu table only covered one interval, so write support needs
-    # the real per-slot cu ids re-extracted from the app.
+    # Scheduled-feeding slot enables (config-v2 write ids), found empirically by
+    # probing and verified on hardware: writing 1/0 to these toggles the slot's
+    # enable byte (read offsets 91 / 95 / 99 respectively).
+    "feed1_enable": 90,
+    "feed2_enable": 93,
+    "feed3_enable": 97,
 }
 
 # Devices with software_version > this use config-v2 (interface 10) for writes.

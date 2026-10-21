@@ -6,10 +6,11 @@ from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import GtsWavePumpCoordinator
+from . import GtsWavePumpCoordinator, protocol
 from .const import DOMAIN, LIGHT_OFF, LIGHT_ON
 from .entity import GtsWavePumpEntity
 
@@ -26,7 +27,10 @@ async def async_setup_entry(
 ) -> None:
     """Set up the switch entities."""
     coordinator: GtsWavePumpCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities([LightSwitch(coordinator)])
+    entities: list[SwitchEntity] = [LightSwitch(coordinator)]
+    for slot in range(1, protocol.FEED_SLOTS + 1):
+        entities.append(FeedSlotSwitch(coordinator, slot))
+    async_add_entities(entities)
 
 
 class _ConfigSwitch(GtsWavePumpEntity, SwitchEntity):
@@ -74,3 +78,18 @@ class LightSwitch(_ConfigSwitch):
     def __init__(self, coordinator: GtsWavePumpCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.device.address}_light"
+
+
+class FeedSlotSwitch(_ConfigSwitch):
+    """Enable/disable one scheduled-feeding slot (定时组). Verified on hardware."""
+
+    _attr_icon = "mdi:fish"
+    _on_value = 1
+    _off_value = 0
+    _attr_entity_category = EntityCategory.CONFIG
+
+    def __init__(self, coordinator: GtsWavePumpCoordinator, slot: int) -> None:
+        super().__init__(coordinator)
+        self._field = f"feed{slot}_enable"
+        self._attr_translation_key = f"feed_slot_{slot}"
+        self._attr_unique_id = f"{coordinator.device.address}_feed{slot}_enable"

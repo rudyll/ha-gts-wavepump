@@ -223,6 +223,7 @@ class GtsWavePumpDevice:
         """Write the whole 24-segment tidal schedule in one config-v2 frame."""
         await self._send(protocol.build_tidal_batch(segments), expect_response=True)
 
+
     async def async_write_field(self, field: int, value: int) -> None:
         """Write a single config field by raw interface-1 id."""
         await self._send(
