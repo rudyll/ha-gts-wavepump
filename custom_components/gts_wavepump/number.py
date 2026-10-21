@@ -80,11 +80,11 @@ class PeriodNumber(GtsWavePumpEntity, NumberEntity):
 
 
 class FeedTimeNumber(GtsWavePumpEntity, NumberEntity):
-    """Feed duration in seconds (used by the Feed button)."""
+    """Feed duration in minutes (the app's 即时喂食 "喂食时间", used by Feed)."""
 
     _attr_translation_key = "feed_time"
     _attr_icon = "mdi:timer-sand"
-    _attr_native_unit_of_measurement = UnitOfTime.SECONDS
+    _attr_native_unit_of_measurement = UnitOfTime.MINUTES
     _attr_native_min_value = FEED_TIME_MIN
     _attr_native_max_value = FEED_TIME_MAX
     _attr_native_step = 1

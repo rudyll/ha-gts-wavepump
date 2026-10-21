@@ -91,7 +91,7 @@ RUN_MODE_OPTIONS = {
     2: "tide",
 }
 
-# feed_time (seconds) range for the number entity.
+# feed_time (minutes) range for the number entity (app's instant-feed duration).
 FEED_TIME_MIN = 1
 FEED_TIME_MAX = 60
 
