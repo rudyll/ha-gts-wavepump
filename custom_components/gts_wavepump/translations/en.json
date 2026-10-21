@@ -90,9 +90,6 @@
       }
     },
     "switch": {
-      "reverse": {
-        "name": "Reverse flow"
-      },
       "light": {
         "name": "Light"
       }

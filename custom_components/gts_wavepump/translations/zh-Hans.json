@@ -90,9 +90,6 @@
       }
     },
     "switch": {
-      "reverse": {
-        "name": "反转"
-      },
       "light": {
         "name": "灯光"
       }

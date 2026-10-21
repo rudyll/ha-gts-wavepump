@@ -46,8 +46,7 @@ auto-discovered over Bluetooth (advertised name `GTS_WAVE20_<serial>`, e.g.
 | `number` Feed time | Seconds | `feed_time` |
 | `number` Communication channel | Channel id (config) | `communication_channel` |
 | `button` Feed | Feed now | `manual_mode` = 5 |
-| `switch` Reverse flow | Direct / reverse | `forward_or_reverse` |
-| `binary_sensor` Light | On / off (read-only) | `light_on` (2=on/1=off) |
+| `switch` Light | On / off | `light_on` (2=on/1=off) |
 | `sensor` Temperature | °C | heartbeat `current_temp` |
 | `sensor` Flow mode | Running waveform | heartbeat `current_mode` |
 | `sensor` Tidal schedule | 24-segment curve (read-only, in attributes) | `auto_m/p/t` |
@@ -100,10 +99,11 @@ official app and verified on hardware:
 
 ## Remaining TODOs
 
-- **On/off** writes power 0 instead of the app's dedicated 关机 command.
+- **Scheduled feeding** (`deviceFeedModelInterval*`) and **master/slave** are
+  not exposed yet.
 - **Period** raw min/max not pinned down (a generous range is used).
-- The **24-segment tidal curve** editor, **feed** scheduling and **light** are
-  not exposed.
+- **Reverse** (`forward_or_reverse`) is intentionally not exposed: the L20
+  firmware removed the reverse feature and the app does not offer it.
 - The real device's UART characteristics are swapped vs. the Microchip
   convention; the integration resolves write/notify by GATT property at connect.
 

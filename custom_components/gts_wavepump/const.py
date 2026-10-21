@@ -70,11 +70,7 @@ POWER_DEFAULT_ON = 80
 #   - manual_or_auto: 1=manual, 2=tide(auto). Manual power only takes effect in
 #     manual mode, so the fan forces manual mode when setting intensity.
 
-# forward_or_reverse values (Tee={direct:1,reverse:2} in app-service.js).
-REVERSE_ON = 2  # reverse flow
-REVERSE_OFF = 1  # direct (forward) flow
-
-# light_on (field 90): 2=on, 1=off (same 1/2 style as forward_or_reverse).
+# light_on (field 90): 2=on, 1=off.
 # Confirmed by diffing the raw config while toggling the wired-controller light.
 LIGHT_ON = 2
 LIGHT_OFF = 1

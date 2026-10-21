@@ -1,4 +1,4 @@
-"""Switch entities: flow direction (reverse) and light."""
+"""Switch entities: the controller light."""
 
 from __future__ import annotations
 
@@ -10,8 +10,13 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import GtsWavePumpCoordinator
-from .const import DOMAIN, LIGHT_OFF, LIGHT_ON, REVERSE_OFF, REVERSE_ON
+from .const import DOMAIN, LIGHT_OFF, LIGHT_ON
 from .entity import GtsWavePumpEntity
+
+# NOTE: forward_or_reverse (Tee 1=direct/2=reverse) exists in the protocol but
+# the L20 firmware removed the reverse feature (changelog: 取消…反转功能) and the
+# app does not expose it, so no reverse switch is created. Re-add for GTS models
+# that still support it.
 
 
 async def async_setup_entry(
@@ -21,12 +26,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the switch entities."""
     coordinator: GtsWavePumpCoordinator = hass.data[DOMAIN][entry.entry_id]
-    async_add_entities(
-        [
-            ReverseSwitch(coordinator),
-            LightSwitch(coordinator),
-        ]
-    )
+    async_add_entities([LightSwitch(coordinator)])
 
 
 class _ConfigSwitch(GtsWavePumpEntity, SwitchEntity):
@@ -56,20 +56,6 @@ class _ConfigSwitch(GtsWavePumpEntity, SwitchEntity):
         sw = self.coordinator.data.software_version if self.coordinator.data else None
         await self.coordinator.device.async_write_named(self._field, value, sw)
         await self.coordinator.async_request_refresh()
-
-
-class ReverseSwitch(_ConfigSwitch):
-    """Toggles forward_or_reverse (direct vs reverse flow)."""
-
-    _attr_translation_key = "reverse"
-    _attr_icon = "mdi:swap-horizontal"
-    _field = "forward_or_reverse"
-    _on_value = REVERSE_ON
-    _off_value = REVERSE_OFF
-
-    def __init__(self, coordinator: GtsWavePumpCoordinator) -> None:
-        super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.device.address}_reverse"
 
 
 class LightSwitch(_ConfigSwitch):

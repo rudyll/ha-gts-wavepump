@@ -48,11 +48,9 @@ cards:
       - type: numeric-input
         style: slider
 
-  # --- 反转 / 灯光 ---
+  # --- 灯光 ---
   - type: entities
     entities:
-      - entity: switch.gts_wavepump_24_42_e3_60_4f_10_reverse_flow
-        name: 反转
       - entity: switch.gts_wavepump_24_42_e3_60_4f_10_light
         name: 灯光
 
