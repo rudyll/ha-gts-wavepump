@@ -1,0 +1,65 @@
+# 独立仪表盘：海缸造浪泵（左侧单独入口，不和智能家居混）
+#
+# 用法：
+#   设置 → 仪表盘 → 右上「+ 添加仪表盘」→「新建空白仪表盘」→
+#     标题填「海缸造浪泵」、图标 mdi:waves、勾选「显示在侧边栏」→ 创建。
+#   打开它 → 右上「编辑」→ 右上三点「原始配置编辑器」→ 把下面整段粘进去保存。
+#
+# 实体名已随 HA 语言显示中文（集成带简体中文翻译），所以卡片里不用再写中文名。
+# 实体 id 对应设备 24:42:E3:60:4F:10；换设备改掉后缀即可。
+
+title: 海缸造浪泵
+views:
+  - title: 造浪泵
+    path: wavepump
+    icon: mdi:waves
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
+        title: 状态与功率
+        cards:
+          - type: glance
+            columns: 3
+            entities:
+              - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_flow_mode
+              - entity: fan.gts_wavepump_24_42_e3_60_4f_10
+                name: 功率
+              - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_temperature
+          - type: tile
+            entity: fan.gts_wavepump_24_42_e3_60_4f_10
+            features:
+              - type: fan-speed
+          - type: tile
+            entity: number.gts_wavepump_24_42_e3_60_4f_10_wave_period
+            features:
+              - type: numeric-input
+                style: slider
+      - type: grid
+        title: 模式
+        cards:
+          - type: tile
+            entity: select.gts_wavepump_24_42_e3_60_4f_10_run_mode
+            features:
+              - type: select-options
+          - type: tile
+            entity: select.gts_wavepump_24_42_e3_60_4f_10_wave_mode
+            features:
+              - type: select-options
+      - type: grid
+        title: 灯光与喂食
+        cards:
+          - type: entities
+            entities:
+              - entity: switch.gts_wavepump_24_42_e3_60_4f_10_light
+              - entity: button.gts_wavepump_24_42_e3_60_4f_10_feed
+              - entity: number.gts_wavepump_24_42_e3_60_4f_10_feed_time
+              - entity: sensor.gts_wave20_21000580_feed_schedule
+      - type: grid
+        title: 潮汐与诊断
+        cards:
+          - type: entities
+            entities:
+              - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_tidal_schedule
+              - entity: number.gts_wavepump_24_42_e3_60_4f_10_communication_channel
+              - entity: sensor.gts_wavepump_24_42_e3_60_4f_10_firmware_version
