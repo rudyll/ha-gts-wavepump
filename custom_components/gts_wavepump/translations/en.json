@@ -53,6 +53,13 @@
           "manual": "Manual",
           "tide": "Tide"
         }
+      },
+      "master_slave": {
+        "name": "Role",
+        "state": {
+          "main": "Main",
+          "slave": "Slave"
+        }
       }
     },
     "number": {
@@ -87,6 +94,9 @@
       },
       "software_version": {
         "name": "Firmware version"
+      },
+      "signal_strength": {
+        "name": "Signal strength"
       },
       "tidal_schedule": {
         "name": "Tidal schedule"

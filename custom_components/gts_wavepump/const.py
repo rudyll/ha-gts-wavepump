@@ -107,6 +107,12 @@ RUN_MODE_OPTIONS = {
     2: "tide",
 }
 
+# master_or_slave select: value -> slug (DeviceModel 1=主机 / 2=从机).
+MASTER_SLAVE_OPTIONS = {
+    1: "main",
+    2: "slave",
+}
+
 # feed_time (minutes) range for the number entity (app's instant-feed duration).
 FEED_TIME_MIN = 1
 FEED_TIME_MAX = 60

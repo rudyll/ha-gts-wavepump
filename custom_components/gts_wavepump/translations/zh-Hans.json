@@ -53,6 +53,13 @@
           "manual": "手动",
           "tide": "潮汐"
         }
+      },
+      "master_slave": {
+        "name": "主从机",
+        "state": {
+          "main": "主机",
+          "slave": "从机"
+        }
       }
     },
     "number": {
@@ -87,6 +94,9 @@
       },
       "software_version": {
         "name": "固件版本"
+      },
+      "signal_strength": {
+        "name": "信号强度"
       },
       "tidal_schedule": {
         "name": "潮汐排程"

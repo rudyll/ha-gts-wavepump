@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
+from homeassistant.components import bluetooth
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory, UnitOfTemperature
+from homeassistant.const import (
+    SIGNAL_STRENGTH_DECIBELS_MILLIWATT,
+    EntityCategory,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -31,6 +36,7 @@ async def async_setup_entry(
             FirmwareSensor(coordinator),
             TidalScheduleSensor(coordinator),
             FeedScheduleSensor(coordinator),
+            SignalStrengthSensor(coordinator),
         ]
     )
 
@@ -170,3 +176,38 @@ class FirmwareSensor(GtsWavePumpEntity, SensorEntity):
     @property
     def native_value(self) -> int | None:
         return self.coordinator.data.software_version if self.coordinator.data else None
+
+
+class SignalStrengthSensor(GtsWavePumpEntity, SensorEntity):
+    """BLE signal strength (RSSI) from the nearest adapter/proxy (diagnostic).
+
+    The `source` attribute names the Bluetooth adapter or ESP proxy that last
+    heard the pump — useful to tell whether a proxy is in range.
+    """
+
+    _attr_translation_key = "signal_strength"
+    _attr_device_class = SensorDeviceClass.SIGNAL_STRENGTH
+    _attr_native_unit_of_measurement = SIGNAL_STRENGTH_DECIBELS_MILLIWATT
+    _attr_state_class = SensorStateClass.MEASUREMENT
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, coordinator: GtsWavePumpCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.device.address}_signal_strength"
+
+    def _service_info(self):
+        return bluetooth.async_last_service_info(
+            self.hass, self.coordinator.device.address, connectable=True
+        )
+
+    @property
+    def native_value(self) -> int | None:
+        info = self._service_info()
+        return info.rssi if info else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object] | None:
+        info = self._service_info()
+        if info is None:
+            return None
+        return {"source": info.source}

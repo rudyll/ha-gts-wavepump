@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0
+
+- **Role** (`select` 主从机): switch the pump between main and slave for
+  multi-pump sync (`master_or_slave`). Verified on hardware.
+- **Signal strength** (`sensor` 信号强度, diagnostic): BLE RSSI from the nearest
+  adapter/proxy, with the source adapter/proxy in an attribute — handy for
+  checking Bluetooth-proxy coverage.
+
 ## 0.5.0
 
 - **Tidal intensity overlay** (`number` 潮汐强度): scale the whole 24-segment
