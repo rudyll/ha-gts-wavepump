@@ -338,6 +338,41 @@ def build_tidal_batch(segments: Sequence[TidalSegment]) -> bytes:
     return build_frame(IFACE_READ_CONFIG_V2, payload)
 
 
+# A full 24-segment batch is ~147 bytes, which is too large for one BLE write
+# (the pump accepts it only in smaller frames), so writes are chunked.
+MAX_V2_PAYLOAD = 40
+
+
+def chunk_config_v2(
+    pairs: Sequence[tuple[int, int]], max_payload: int = MAX_V2_PAYLOAD
+) -> list[bytes]:
+    """Split (id, value) pairs into config-v2 frames no larger than max_payload."""
+    frames: list[bytes] = []
+    current: list[int] = []
+    for field_id, value in pairs:
+        if len(current) + 2 > max_payload:
+            frames.append(build_frame(IFACE_READ_CONFIG_V2, current))
+            current = []
+        current += [field_id, value]
+    if current:
+        frames.append(build_frame(IFACE_READ_CONFIG_V2, current))
+    return frames
+
+
+def tidal_full_pairs(segments: Sequence[TidalSegment]) -> list[tuple[int, int]]:
+    """(id, value) pairs writing mode/power/period for every segment."""
+    pairs: list[tuple[int, int]] = []
+    for i, seg in enumerate(segments):
+        cu = _TIDAL_CU_BASE + 3 * i
+        pairs += [(cu, seg.mode), (cu + 1, seg.power), (cu + 2, seg.period)]
+    return pairs
+
+
+def tidal_power_pairs(powers: Sequence[int]) -> list[tuple[int, int]]:
+    """(id, value) pairs writing only auto_p (power) for every segment."""
+    return [(_TIDAL_CU_BASE + 1 + 3 * i, p) for i, p in enumerate(powers)]
+
+
 class InvalidFrameError(ValueError):
     """Raised when a received frame is malformed or fails validation."""
 

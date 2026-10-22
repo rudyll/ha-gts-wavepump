@@ -64,6 +64,9 @@
       },
       "channel": {
         "name": "Communication channel"
+      },
+      "tidal_intensity": {
+        "name": "Tidal intensity"
       }
     },
     "sensor": {

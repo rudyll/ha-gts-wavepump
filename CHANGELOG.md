@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0
+
+- **Tidal intensity overlay** (`number` 潮汐强度): scale the whole 24-segment
+  tidal curve by a percentage (10–100%) for e.g. coral acclimation — lowers the
+  day's flow proportionally and restores exactly at 100%, without changing each
+  hour's waveform or relative power. Scales from a persisted baseline (drift-
+  free); only takes effect in tide (auto) mode.
+- Tidal writes are chunked to single-field config-v2 frames (the pump only
+  applies the first field of a multi-field frame), fixing full-curve writes via
+  `set_tidal_schedule` too.
+
 ## 0.4.1
 
 - Each feed-timer switch (定时组 1/2/3) now exposes its slot's `time` (HH:MM) and

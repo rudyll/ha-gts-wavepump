@@ -204,6 +204,20 @@ def test_parse_config_reads_feed_slots():
     assert cfg["feed3_duration"] == 12
 
 
+def test_tidal_power_pairs_and_chunking():
+    pairs = protocol.tidal_power_pairs([40, 60, 30])
+    # auto_p cu ids are 15, 18, 21 for segments 0,1,2
+    assert pairs == [(15, 40), (18, 60), (21, 30)]
+    # 24 segments => >40-byte payload => must split into multiple frames
+    frames = protocol.chunk_config_v2(protocol.tidal_power_pairs([50] * 24))
+    assert len(frames) >= 2
+    for f in frames:
+        assert f[0] == protocol.HEADER
+        assert f[1] == protocol.IFACE_READ_CONFIG_V2
+        assert protocol.is_checksum_valid(f)
+        assert len(f) <= protocol.MAX_V2_PAYLOAD + 3  # header+iface+checksum
+
+
 def test_build_tidal_batch_frame():
     segs = [
         protocol.TidalSegment(mode=1, power=40, period=50),

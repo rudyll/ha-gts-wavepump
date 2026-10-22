@@ -220,8 +220,28 @@ class GtsWavePumpDevice:
     async def async_write_tidal(
         self, segments: "list[protocol.TidalSegment]"
     ) -> None:
-        """Write the whole 24-segment tidal schedule in one config-v2 frame."""
-        await self._send(protocol.build_tidal_batch(segments), expect_response=True)
+        """Write the whole 24-segment tidal schedule, one field per frame.
+
+        The pump only applies the first field of a multi-field config-v2 frame,
+        so each mode/power/period is sent as its own single-field frame.
+        """
+        for field_id, value in protocol.tidal_full_pairs(segments):
+            await self._send(
+                protocol.build_frame(protocol.IFACE_READ_CONFIG_V2, [field_id, value]),
+                expect_response=True,
+            )
+
+    async def async_write_tidal_powers(self, powers: "list[int]") -> None:
+        """Write only each segment's power (auto_p), one field per frame.
+
+        The pump applies only the first field of a multi-field config-v2 frame,
+        so each segment power is sent as its own single-field frame.
+        """
+        for field_id, value in protocol.tidal_power_pairs(powers):
+            await self._send(
+                protocol.build_frame(protocol.IFACE_READ_CONFIG_V2, [field_id, value]),
+                expect_response=True,
+            )
 
 
     async def async_write_field(self, field: int, value: int) -> None:
