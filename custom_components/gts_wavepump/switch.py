@@ -90,6 +90,23 @@ class FeedSlotSwitch(_ConfigSwitch):
 
     def __init__(self, coordinator: GtsWavePumpCoordinator, slot: int) -> None:
         super().__init__(coordinator)
+        self._slot = slot
         self._field = f"feed{slot}_enable"
         self._attr_translation_key = f"feed_slot_{slot}"
         self._attr_unique_id = f"{coordinator.device.address}_feed{slot}_enable"
+
+    @property
+    def extra_state_attributes(self) -> dict[str, object] | None:
+        """This slot's feeding time (HH:MM) and duration (minutes)."""
+        data = self.coordinator.data
+        if data is None:
+            return None
+        cfg = data.config
+        hour = cfg.get(f"feed{self._slot}_hour")
+        minute = cfg.get(f"feed{self._slot}_minute")
+        time = (
+            f"{hour:02d}:{minute:02d}"
+            if isinstance(hour, int) and isinstance(minute, int) and hour < 24
+            else None
+        )
+        return {"time": time, "duration_min": cfg.get(f"feed{self._slot}_duration")}

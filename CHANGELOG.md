@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.1
+
+- Each feed-timer switch (定时组 1/2/3) now exposes its slot's `time` (HH:MM) and
+  `duration_min` as attributes, so the schedule is visible on the switch itself.
+
 ## 0.4.0
 
 - **Scheduled-feeding slot toggles**: three `switch` entities (定时组 1/2/3) to
