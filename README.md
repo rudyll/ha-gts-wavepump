@@ -1,5 +1,7 @@
 # GTS Wave Pump — Home Assistant (local BLE)
 
+**English** | [简体中文](README.zh-CN.md)
+
 A Home Assistant custom integration for **狗头鲨 (Goutousha) GTS** wave pumps —
 **L20 and L40** — controlled **locally over Bluetooth Low Energy**. A local,
 cloud-free replacement for the GTS Aqua app: no vendor cloud, no Aliyun MQTT, no
@@ -35,7 +37,8 @@ config/custom_components/gts_wavepump/
 Restart Home Assistant, then go to **Settings → Devices & services**. Pumps are
 auto-discovered over Bluetooth (advertised name `GTS_WAVE20_<serial>`, e.g.
 `GTS_WAVE20_21000580`); confirm the discovery, or add one manually via
-**+ Add integration → GTS L20 Wave Pump**.
+**+ Add integration → GTS Wave Pump**. Or install via HACS as a custom
+repository (`https://github.com/rudyll/ha-gts-wavepump`, category Integration).
 
 ## Entities
 
@@ -44,7 +47,9 @@ auto-discovered over Bluetooth (advertised name `GTS_WAVE20_<serial>`, e.g.
 | `fan` | On/off + intensity % | active `manual_power` bank |
 | `select` Run mode | Manual / Tide | `manual_or_auto` |
 | `select` Wave mode | Constant/Pulse/Sine/Turbulence/Surge | `manual_mode` |
+| `select` Role | Main / Slave (multi-pump) | `master_or_slave` |
 | `number` Wave period | Seconds | active `manual_period` bank |
+| `number` Tidal intensity | Overlay %: scale the whole tidal curve | `auto_p` × factor |
 | `number` Feed time | Minutes | `feed_time` |
 | `number` Communication channel | Channel id (config) | `communication_channel` |
 | `button` Feed | Feed now | `manual_mode` = 5 |
@@ -53,6 +58,8 @@ auto-discovered over Bluetooth (advertised name `GTS_WAVE20_<serial>`, e.g.
 | `sensor` Temperature | °C | heartbeat `current_temp` |
 | `sensor` Flow mode | Running waveform | heartbeat `current_mode` |
 | `sensor` Tidal schedule | 24-segment curve (read-only, in attributes) | `auto_m/p/t` |
+| `sensor` Feed schedule | 3 feeding slots (read-only, in attributes) | feed slots |
+| `sensor` Signal strength | BLE RSSI from the nearest adapter/proxy | Bluetooth |
 | `sensor` Firmware version | `software_version` (diagnostic) | heartbeat |
 
 There is also a `gts_wavepump.set_tidal_schedule` service (target the fan
@@ -75,6 +82,10 @@ Notes:
 - The **tidal curve** is read-only as a sensor and writable in bulk via the
   `set_tidal_schedule` service; there is no per-segment editor UI (use the app
   for visual editing, or the service from automations).
+- **Tidal intensity** scales the whole 24-segment curve by a percentage from a
+  persisted baseline (drift-free; 100% restores exactly) — for coral acclimation
+  — without changing each hour's waveform or relative power. Only effective in
+  tide mode.
 
 ## How it works
 
@@ -103,7 +114,8 @@ official app and verified on hardware:
 ## Remaining TODOs
 
 - **Scheduled feeding**: the three slots can be enabled/disabled from HA; their
-  times are read-only (set them in the app). **master/slave** is not exposed.
+  times are read-only (set them in the app — the per-slot time write ids are a
+  vendor hot-update feature not present in the shipped APK).
 - **Period** raw min/max not pinned down (a generous range is used).
 - **Reverse** (`forward_or_reverse`) is intentionally not exposed: the L20
   firmware removed the reverse feature and the app does not offer it.
