@@ -25,7 +25,7 @@
       "fields": {
         "segments": {
           "name": "Segments",
-          "description": "List of up to 24 {mode, power, period} segments (period in seconds)."
+          "description": "List of up to 24 mode/power/period segments (period in seconds)."
         }
       }
     }

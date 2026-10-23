@@ -11,7 +11,7 @@ set_tidal_schedule:
     segments:
       name: Segments
       description: >-
-        List of up to 24 segments, each {mode, power, period}. mode is the
+        List of up to 24 segments, each mode/power/period. mode is the
         waveform (1=constant, 2=pulse, 3=sine, 4=turbulence, 6=surge), power is
         0-99, period is seconds.
       required: true

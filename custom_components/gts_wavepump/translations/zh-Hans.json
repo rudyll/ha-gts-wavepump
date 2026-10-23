@@ -25,7 +25,7 @@
       "fields": {
         "segments": {
           "name": "排程段",
-          "description": "最多 24 段 {mode, power, period} 列表（period 为秒）。"
+          "description": "最多 24 段 mode/power/period 列表（period 为秒）。"
         }
       }
     }
