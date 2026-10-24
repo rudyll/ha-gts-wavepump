@@ -1,0 +1,129 @@
+"""Read-only probes of real classes with simulated transports; no HA/device I/O."""
+import ast,asyncio,importlib.util,sys,logging
+from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+GTS=Path('/Users/rudyl/Developer/ha-gts-wavepump')
+ZET=Path('/Users/rudyl/Developer/ha-zetlight-m5')
+def module(name,path):
+    spec=importlib.util.spec_from_file_location(name,path); obj=importlib.util.module_from_spec(spec);sys.modules[name]=obj;spec.loader.exec_module(obj);return obj
+
+def classes(path,names,ctx):
+    source=ast.parse(path.read_text());nodes=[ast.ImportFrom(module='__future__',names=[ast.alias(name='annotations')],level=0)]
+    nodes.extend(x for x in source.body if isinstance(x,ast.ClassDef) and x.name in names)
+    tree=ast.Module(body=nodes,type_ignores=[]);ast.fix_missing_locations(tree);exec(compile(tree,str(path),'exec'),ctx);return ctx
+
+fan_tests=module('audit_fan_tests',GTS/'tests/test_fan.py'); protocol=fan_tests.protocol
+
+async def late_failure():
+    fan,c=fan_tests.FanTests().make_fan()
+    fan._run_mode_before_off=protocol.MANUAL_OR_AUTO_TIDE
+    c.data.current_mode=protocol.MODE_OFF
+    calls=[]
+    async def write(name,value,sw):
+        calls.append((name,value))
+        if len(calls)==4: raise OSError('last tide write lost')
+    c.device.async_write_named=write
+    try: await fan.async_turn_on()
+    except OSError: pass
+    assert calls[:3]==[('manual_or_auto',1),('manual_mode',1),('manual_power_1',80)]
+    print('GTS late failure: manual mode and power 80 applied before final tide write fails; no recovery write follows',calls)
+
+async def interleave():
+    fan,c=fan_tests.FanTests().make_fan()
+    fan._run_mode_before_off=protocol.MANUAL_OR_AUTO_TIDE
+    writes=[]; first=asyncio.Event();release=asyncio.Event()
+    async def write(name,value,sw):
+        writes.append((name,value))
+        if len(writes)==1: first.set();await release.wait()
+    c.device.async_write_named=write
+    turning=asyncio.create_task(fan.async_turn_on()); await first.wait()
+    await fan.async_turn_off();release.set();await turning
+    stop=writes.index(('manual_mode',7))
+    assert any(name=='manual_mode' and value in protocol.MANUAL_MODES for name,value in writes[stop+1:])
+    print('GTS interleave: a later turn_off is overwritten by unfinished earlier turn_on',writes)
+
+async def invalid_ack():
+    ctx=classes(GTS/'custom_components/gts_wavepump/__init__.py',['GtsWavePumpDevice'],dict(asyncio=asyncio,protocol=protocol,_LOGGER=logging.getLogger('audit'),RESPONSE_TIMEOUT=1))
+    device=ctx['GtsWavePumpDevice'](None,'synthetic')
+    async def gatt(*args,**kwargs): device._notification_handler(None,bytearray(b'not-a-valid-ack'))
+    client=SimpleNamespace(write_gatt_char=gatt)
+    device._ensure_connected=AsyncMock(return_value=client)
+    await device.async_write_named('manual_mode',7,17)
+    print('GTS invalid ACK: invalid notification accepted as successful write')
+
+class Base:
+    def __class_getitem__(cls,item): return cls
+    def __init__(self,hass,*args,**kwargs): self.hass=hass
+    def async_update_listeners(self): pass
+    def async_write_ha_state(self): pass
+class Store:
+    def __init__(self,*args): pass
+    async def async_load(self):return None
+    async def async_save(self,*args):pass
+    async def async_remove(self):pass
+
+async def tidal_baseline_failure():
+    ctx=classes(GTS/'custom_components/gts_wavepump/number.py',['TidalIntensityNumber'],dict(GtsWavePumpEntity=Base,RestoreNumber=type('RestoreNumber',(),{}),PERCENTAGE='%',NumberMode=SimpleNamespace(SLIDER='slider'),POWER_MIN=0,POWER_MAX=100))
+    original=[SimpleNamespace(power=80) for _ in range(24)]
+    c=SimpleNamespace(device=SimpleNamespace(address='synthetic'),data=SimpleNamespace(tidal=original),async_request_refresh=AsyncMock())
+    entity=ctx['TidalIntensityNumber'].__new__(ctx['TidalIntensityNumber']);entity.coordinator=c;entity._attr_native_value=100;entity._baseline=None
+    attempts=0;written=[]
+    async def write(powers):
+        nonlocal attempts
+        attempts+=1;written.append(powers)
+        if attempts==1:
+            c.data.tidal=[SimpleNamespace(power=powers[i] if i<12 else 80) for i in range(24)]
+            raise OSError('BLE lost after half the curve; simulated next poll reads partial result')
+    c.device.async_write_tidal_powers=write
+    try:await entity.async_set_native_value(50)
+    except OSError:pass
+    await entity.async_set_native_value(50)
+    assert written[1]==[20]*12+[40]*12
+    print('GTS baseline retry: original 80s -> expected all 40; actual first twelve 20, remainder 40')
+
+zp=module('audit_zet_protocol',ZET/'custom_components/zetlight_led/protocol.py')
+from datetime import timedelta
+ctx=classes(ZET/'custom_components/zetlight_led/__init__.py',['ZetlightCoordinator'],dict(DataUpdateCoordinator=Base,protocol=zp,Store=Store,_LOGGER=logging.getLogger('audit'),DOMAIN='zetlight_led',SCAN_INTERVAL=timedelta(seconds=30),LIGHTNING_DEFAULT_FLASHES=1,LIGHTNING_DEFAULT_INTENSITY=80,LIGHTNING_DEFAULT_ON_MS=50,FEEDING_DEFAULT_LEVEL=20,FEEDING_DEFAULT_MINUTES=10,callback=lambda f:f,asyncio=asyncio,HomeAssistantError=RuntimeError,ZetlightUDPError=OSError))
+Coord=ctx['ZetlightCoordinator']
+
+async def zet_preset_baseline():
+    saved=[]
+    client=SimpleNamespace(async_write_schedule=AsyncMock(),async_write_brightness=AsyncMock())
+    co=Coord(None,client,'synthetic');co._acclimation_loaded=True;co._acclimation_base=[(80,80,80,80)]*5;co.acclimation_scale=50
+    new=[(30,30,30,30)]*5
+    await co.async_write_schedule(new,540,[60]*5)
+    await co.async_apply_acclimation(100)
+    written=client.async_write_brightness.await_args.args[0]
+    assert written==[(80,80,80,80)]*5 and written!=new
+    print('Zetlight preset: applying a new curve while dimmed, then restoring 100, writes the old curve over the new preset')
+
+async def zet_modes():
+    client=SimpleNamespace(async_read_options=AsyncMock(return_value=SimpleNamespace(fade_enable=False)),async_set_brightness=AsyncMock(),async_turn_on=AsyncMock(),async_read_status=AsyncMock(return_value=SimpleNamespace(setpoints=[80]*4)))
+    co=Coord(None,client,'synthetic')
+    ctx['async_call_later']=lambda *args:lambda:None
+    await co.async_feeding_set(True)
+    assert co.feeding_on and co.channels==[20]*4
+    # This is the real cleanup routine unconditionally invoked by cloud/lightning.
+    await co.async_resume_schedule()
+    assert co.feeding_on and co.channels==[80]*4
+    print('Zetlight modes: effect cleanup resumes schedule/80 while feeding switch remains on/20 requested')
+    co2=Coord(None,client,'synthetic')
+    assert not co2.feeding_on and co2._feeding_unsub is None
+    print('Zetlight restart: a fresh coordinator has feeding=false and no persisted deadline')
+
+async def zet_option_failure():
+    local=classes(ZET/'custom_components/zetlight_led/__init__.py',['ZetlightClient'],dict(asyncio=asyncio,protocol=zp,ZetlightUDPError=OSError))
+    client=local['ZetlightClient'].__new__(local['ZetlightClient'])
+    client.device_code=zp.DEFAULT_DEVICE_CODE
+    client.async_read_options=AsyncMock(side_effect=OSError('options read unavailable'))
+    client._request=AsyncMock()
+    await client.async_set_coral(True)
+    sent=client._request.await_args.args[0]
+    assert list(sent[8:11])==[0,0,1]
+    print('Zetlight option read failure: coral-on still sends auto-cloud=0 and phase=0, not preserved unknown values')
+
+async def main():
+    for test in [late_failure,interleave,invalid_ack,tidal_baseline_failure,zet_preset_baseline,zet_modes,zet_option_failure]:await test()
+asyncio.run(main())

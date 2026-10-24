@@ -1,0 +1,8 @@
+GTS late failure: manual mode and power 80 applied before final tide write fails; no recovery write follows [('manual_or_auto', 1), ('manual_mode', 1), ('manual_power_1', 80), ('manual_or_auto', 2)]
+GTS interleave: a later turn_off is overwritten by unfinished earlier turn_on [('manual_or_auto', 1), ('manual_mode', 7), ('manual_mode', 3), ('manual_power_3', 80), ('manual_or_auto', 2)]
+GTS invalid ACK: invalid notification accepted as successful write
+GTS baseline retry: original 80s -> expected all 40; actual first twelve 20, remainder 40
+Zetlight preset: applying a new curve while dimmed, then restoring 100, writes the old curve over the new preset
+Zetlight modes: effect cleanup resumes schedule/80 while feeding switch remains on/20 requested
+Zetlight restart: a fresh coordinator has feeding=false and no persisted deadline
+Zetlight option read failure: coral-on still sends auto-cloud=0 and phase=0, not preserved unknown values

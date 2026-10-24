@@ -1,0 +1,25 @@
+import heapq
+from pathlib import Path
+import yaml
+class Loader(yaml.SafeLoader):pass
+Loader.add_constructor('!secret',lambda l,n:l.construct_scalar(n))
+config=yaml.load(Path('/Volumes/home-1/Coding/M5Stack/reef-dualkey.yaml').read_text(),Loader=Loader)
+both=next(x for x in config['binary_sensor'] if x.get('id')=='both_keys')
+hold=float(both['on_press']['then'][1]['delay'].removesuffix('s'))
+release_delay=float(both['on_release']['then'][0]['delay'].removesuffix('s'))
+queue=[];now=0;down=False;guard=False;unlocked=False;current_press=None
+for t,action in [(0,'press'),(.2,'release'),(1.4,'press')]:heapq.heappush(queue,(t,action))
+while queue:
+    now,action=heapq.heappop(queue)
+    if action=='press':
+        down=True;guard=True;current_press=now;heapq.heappush(queue,(now+hold,'hold_finished'))
+    elif action=='release':
+        down=False;heapq.heappush(queue,(now+release_delay,'clear_guard'))
+    elif action=='clear_guard':guard=False
+    elif action=='hold_finished' and down:
+        unlocked=not unlocked
+        if unlocked:
+            elapsed=round(now-current_press,3)
+            assert elapsed<hold
+            print(f'DualKey timing counterexample: unlock at t={now:.1f}s; latest continuous combo only {elapsed:.1f}s, required {hold:.1f}s')
+            break

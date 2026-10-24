@@ -1,0 +1,1 @@
+DualKey timing counterexample: unlock at t=1.5s; latest continuous combo only 0.1s, required 1.5s

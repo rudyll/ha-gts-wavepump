@@ -1,5 +1,20 @@
 # Recovery progress — 2026-10-24
 
+## Latest: cross-integration audit, publication held
+
+Rudy explicitly approved pushing all three repositories and publishing GTS
+0.6.2, then asked for a broader audit. The publication authorization persists;
+no push/tag/release has run. A01/GTS-R06 also affects this session's new resume
+helper and blocks publishing it unchanged. The earlier device short test does
+not cover this error/concurrency path.
+
+[Full read-only audit](../audits/2026-10-24-cross-integration-review.md): 12
+findings, 7 high and 5 medium. Real-class simulated-I/O probes reproduced eight
+counterexamples; configuration-derived combo timing supplies another. Production
+code was not changed during this audit. Next proposed implementation task is
+GTS-R06 with strong reasoning; original recovery checkpoints below remain
+traceable. Fix approval is distinct from the already granted publish approval.
+
 Rudy asked to recover Claude's interrupted GTS pump and DualKey work, and
 explicitly approved deploying/restarting HA and a brief native-feed test without
 switching the return-pump outlets. Current queue: [tasks.md](../tasks.md).
