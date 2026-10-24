@@ -41,3 +41,17 @@ cycle, light cross-mode/effect visual acceptance, abnormal physical key timing,
 long-term connection stability, measured battery calibration and an actual status
 severity source. No schedules, alarm thresholds, battery calibration coefficients,
 or physical water-flow observations have been invented.
+
+## Additional observed battery defect
+
+DK-R04: official M5 v1.5 power schematic gives Vbat=Vadc_bat×1.51. Replaced the
+incorrect2.0 multiplier. DualKey suite now12 tests. Firmware was compiled and
+installed by authenticated encrypted OTA; new12:12:19 build confirmed through an
+independent encrypted API connection. HA reports4.20535V rather than5.5V. First
+OTA boot rolled back before healthy-boot admission; controlled retry ran the new
+partition. The reset cause is not proven. Absolute meter calibration remains open.
+
+Publication: both release manifests/tags/latest status/non-draft/non-prerelease
+flags and notes were read back and verified against the exact source changelog:
+[GTS0.6.2](https://github.com/rudyll/ha-gts-wavepump/releases/tag/v0.6.2),
+[Zetlight0.22.0](https://github.com/rudyll/ha-zetlight-led/releases/tag/v0.22.0).

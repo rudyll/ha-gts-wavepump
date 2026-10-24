@@ -1,3 +1,10 @@
+## Publication verified — 2026-10-24
+
+- [rudyll/ha-gts-wavepump 0.6.2](https://github.com/rudyll/ha-gts-wavepump/releases/tag/v0.6.2): remote manifest, annotated tag target, latest release, non-draft/non-prerelease status, and exact changelog notes verified. Release source commit `70a2dec2314f`.
+- [rudyll/ha-zetlight-led 0.22.0](https://github.com/rudyll/ha-zetlight-led/releases/tag/v0.22.0): remote manifest, annotated tag target, latest release, non-draft/non-prerelease status, and exact changelog notes verified. Release source commit `6091a096c770`.
+- DualKey source push completed; no binary or private configuration published.
+- Subsequent commits only record verification evidence unless specifically noted below.
+
 # Current audit repair status — 2026-10-24
 
 ## Runtime evidence added after deployment
