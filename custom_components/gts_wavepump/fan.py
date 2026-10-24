@@ -135,11 +135,12 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         # Plain "turn on": resume the run mode the pump had before it was turned
         # off — so a feeding off/on cycle returns to tide instead of forcing
         # manual. Falls back to manual at the default power if it wasn't tide.
-        if self._run_mode_before_off == protocol.MANUAL_OR_AUTO_TIDE:
-            await self.coordinator.device.async_write_named(
-                "manual_or_auto", protocol.MANUAL_OR_AUTO_TIDE, self._software_version
-            )
-            await self.coordinator.async_request_refresh()
+        run_mode = self._run_mode_before_off
+        if run_mode is None and self.coordinator.data is not None:
+            # The pump retains its run mode across off/feed and HA reloads.
+            run_mode = self.coordinator.data.config.get("manual_or_auto")
+        if run_mode == protocol.MANUAL_OR_AUTO_TIDE:
+            await self._async_resume_tide()
             return
         await self._async_write_power(POWER_DEFAULT_ON)
 
@@ -171,6 +172,32 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
             for s in segments
         ]
         await self.coordinator.device.async_write_tidal(segs)
+        await self.coordinator.async_request_refresh()
+
+    async def _async_resume_tide(self) -> None:
+        """Restart the pump into running tide mode from an off/关机 state.
+
+        Setting manual_or_auto=tide alone does NOT restart a pump that was turned
+        off (manual_mode 7, power 0): it must first be running (a manual waveform
+        at some power) and then switched to tide, which picks up the schedule.
+        """
+        sw = self._software_version
+        mode = self._current_mode
+        if mode not in protocol.MANUAL_MODES:
+            mode = protocol.MANUAL_MODES[0]
+        device = self.coordinator.device
+        # 1) exit 关机 and start running (manual waveform at the default power)
+        await device.async_write_named(
+            "manual_or_auto", protocol.MANUAL_OR_AUTO_MANUAL, sw
+        )
+        await device.async_write_named("manual_mode", mode, sw)
+        await device.async_write_named(
+            protocol.power_field_name(mode, sw), POWER_DEFAULT_ON, sw
+        )
+        # 2) switch to tide so the tidal schedule resumes
+        await device.async_write_named(
+            "manual_or_auto", protocol.MANUAL_OR_AUTO_TIDE, sw
+        )
         await self.coordinator.async_request_refresh()
 
     async def _async_write_power(self, raw_power: int) -> None:

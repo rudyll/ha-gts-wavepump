@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.6.2
+
+- Fix the incomplete tide-mode restart in 0.6.1: after a dedicated off command,
+  setting the run mode to tide alone could leave the pump stopped. A plain
+  `fan.turn_on` now starts a manual waveform at the default power before
+  returning to tide. When no in-memory off/on history exists, use the pump's
+  retained run mode, including after an HA restart or native feeding. Explicit
+  percentage control still selects manual mode.
+- Add command-sequence regression tests for tide restart, manual operation,
+  explicit percentage overrides, and BLE write failure.
+
+
 ## 0.6.1
 
 - Fix: `fan.turn_on` now **resumes the previous run mode** instead of always
