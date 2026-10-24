@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.1
+
+- Fix: `fan.turn_on` now **resumes the previous run mode** instead of always
+  forcing manual. Turning the pump off then on (e.g. a feeding automation that
+  pauses the pump) keeps it in **tide** mode instead of dropping the tidal
+  schedule. `turn_off` remembers the mode; `set_percentage`/`turn_on` with an
+  explicit percentage still mean manual.
+
 ## 0.6.0
 
 - **Role** (`select` 主从机): switch the pump between main and slave for

@@ -73,6 +73,9 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
     def __init__(self, coordinator: GtsWavePumpCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = coordinator.device.address
+        # Remembered run mode (manual_or_auto) before turn_off, so turn_on can
+        # resume it — e.g. a feeding automation off/on keeps the pump in tide.
+        self._run_mode_before_off: int | None = None
 
     @property
     def _software_version(self) -> int | None:
@@ -126,15 +129,32 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         preset_mode: str | None = None,
         **kwargs: Any,
     ) -> None:
-        await self._async_write_power(
-            percentage if percentage is not None else POWER_DEFAULT_ON
-        )
+        if percentage is not None:
+            await self._async_write_power(percentage)
+            return
+        # Plain "turn on": resume the run mode the pump had before it was turned
+        # off — so a feeding off/on cycle returns to tide instead of forcing
+        # manual. Falls back to manual at the default power if it wasn't tide.
+        if self._run_mode_before_off == protocol.MANUAL_OR_AUTO_TIDE:
+            await self.coordinator.device.async_write_named(
+                "manual_or_auto", protocol.MANUAL_OR_AUTO_TIDE, self._software_version
+            )
+            await self.coordinator.async_request_refresh()
+            return
+        await self._async_write_power(POWER_DEFAULT_ON)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._async_off()
 
     async def _async_off(self) -> None:
-        """Turn the pump off with the app's dedicated 关机 (manual_mode = 7)."""
+        """Turn the pump off with the app's dedicated 关机 (manual_mode = 7).
+
+        Remembers the current run mode so a following turn_on can resume it.
+        """
+        if self.coordinator.data is not None:
+            self._run_mode_before_off = self.coordinator.data.config.get(
+                "manual_or_auto"
+            )
         await self.coordinator.device.async_write_named(
             "manual_mode", protocol.MODE_OFF, self._software_version
         )
