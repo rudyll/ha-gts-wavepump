@@ -1,3 +1,58 @@
+# Current audit repair status — 2026-10-24
+
+## Runtime evidence added after deployment
+
+HA native config check passed; the single requested restart completed. GTS,
+Zetlight and ESPHome entries are loaded. New GTS native short test observed
+feed/0 then running tide/sine/55; both original cuco outlets remained on. GTS
+command_error is null and recovery_required false. Zetlight active_mode=schedule,
+command_error null, no pending curve recovery; its actual light on/off remains
+unknown because the device only reports program setpoints.
+
+DualKey pairing completed through the official encrypted reconfigure flow.
+New firmware's real unlock event arrived at 12:06:24 Asia/Shanghai; the real
+key1-long at 12:06:27 matched the selected device and finished its empty action.
+All six current event filters are scoped to that device. A proposed synthetic
+live-event injection was rejected by automatic approval review; it was not run
+or bypassed. Read-only native config validation and the user's real physical
+sequence provided the safer verification path.
+
+All local listeners exited; no persistent observation job was installed.
+Physical abnormal combo timing, continuous WiFi/battery stability, battery ADC
+calibration, actual status/alarm source and whole-tank outlet cycling remain
+explicit acceptance/input gaps, not unimplemented audit fixes.
+
+## Latest: audit fixes implemented; runtime/release verification in progress
+
+GTS-R06/R07/R08: device-wide reentrant operation gate, stop generations,
+confirmed compensating stop on failed/cancelled starts; strict frame/interface
+matching plus write readback; durable immutable intensity baseline and pending
+write state. Unsupported firmware and incomplete curves fail closed. Commands
+and pending recovery are visible in entity attributes. Full curve replacement
+requires clearing an active intensity overlay. Runtime files and manifest 0.6.2
+are staged on HA; native `ha core check` succeeded and one restart was requested.
+
+Verification: 49 pytest tests, 16 subtests passed. Tests execute production
+control classes with simulated BLE/store; no live failed-write injection.
+The initial generic unittest runner lacked pytest; rerunning in the existing
+pytest environment passed. Four installed blueprints passed HA native validation
+with empty optional inputs. Initial templated entity listeners were rejected
+by HA and replaced with native direct-input entity listeners before validation.
+
+Pending: observe loaded entries; short native feed→tide recovery without cutting
+outlets; verify public main/tag/GitHub Release. Whole-tank outlet cycling remains
+a separate supervised acceptance gate. Next GTS-R03 / strong reasoning.
+
+Rudy explicitly requested fixing all audit findings on 2026-10-24. Earlier
+push/release authorization persists. Software tests simulate transport/storage;
+they do not establish physical pump flow, LED colour, or outlet recovery.
+No global scheduler or monitor was installed. The unrelated AquaTank checkout
+was not changed. Runtime deployment was backed up under HA's
+`/config/.reef-audit-fixes-20261024-115758`; blueprint/automation snapshots are in
+`/config/.reef-blueprint-fixes-*`. Never blindly restore a whole automation file.
+
+---
+
 # Recovery progress — 2026-10-24
 
 ## Latest: cross-integration audit, publication held

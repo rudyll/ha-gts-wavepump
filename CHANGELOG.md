@@ -2,6 +2,20 @@
 
 ## 0.6.2
 
+- Serialize complete BLE operations. A later stop supersedes unfinished starts
+  and curve writes; failed or cancelled restarts attempt a confirmed safe stop
+  rather than leaving the temporary manual power running.
+- Validate response framing/interface and echoed legacy writes; require config
+  or heartbeat readback for commands. Discard timed-out/cancelled connections.
+- Save the original full tidal curve and pending intensity before writing.
+  Partial-write retry and HA restart retain the same baseline; 100% restores it.
+  Full schedule replacement is blocked until the intensity overlay is cleared.
+- Expose command errors and pending recovery in entity attributes.
+- Upgrade: restart HA after installing. A failed curve write needs an explicit
+  intensity retry (or 100% restore); do not delete HA storage to clear it.
+  Existing damaged baselines cannot be reconstructed automatically. Unsupported
+  firmware/short curves fail closed. HA telemetry is not a physical flow test.
+
 - Fix the incomplete tide-mode restart in 0.6.1: after a dedicated off command,
   setting the run mode to tide alone could leave the pump stopped. A plain
   `fan.turn_on` now starts a manual waveform at the default power before

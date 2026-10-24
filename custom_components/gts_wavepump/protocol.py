@@ -262,12 +262,12 @@ def parse_config(frame: Sequence[int], software_version: int | None) -> dict[str
     result: dict[str, int] = {}
     if uses_new_table(software_version):
         for name, idx in JC_FIELD_RES.items():
-            if idx < len(frame):
+            if idx < len(frame) - 1:
                 result[name] = frame[idx]
     else:
         for i, name in enumerate(ZC_READ_ORDER):
             idx = i + 2
-            if idx < len(frame):
+            if idx < len(frame) - 1:
                 result[name] = frame[idx]
     return result
 
@@ -321,7 +321,7 @@ def parse_tidal(frame: Sequence[int]) -> list[TidalSegment]:
     segments: list[TidalSegment] = []
     for i in range(TIDAL_SEGMENTS):
         base = _TIDAL_READ_BASE + 3 * i
-        if base + 2 >= len(frame):
+        if base + 2 >= len(frame) - 1:
             break
         segments.append(
             TidalSegment(mode=frame[base], power=frame[base + 1], period=frame[base + 2])
@@ -455,7 +455,7 @@ def parse_heartbeat(frame: Sequence[int]) -> HeartbeatStatus:
         raise InvalidFrameError(
             f"not a heartbeat frame (interface={interface})"
         )
-    if len(frame) < 8:
+    if len(frame) < 10:
         raise InvalidFrameError(f"heartbeat too short: {bytes(frame)!r}")
     return HeartbeatStatus(
         error_code=frame[2],

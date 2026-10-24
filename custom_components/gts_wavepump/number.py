@@ -10,6 +10,7 @@ from homeassistant.const import PERCENTAGE, EntityCategory, UnitOfTime
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.restore_state import ExtraStoredData
+from homeassistant.helpers.storage import Store
 
 from . import GtsWavePumpCoordinator, protocol
 from .const import (
@@ -179,6 +180,10 @@ class TidalIntensityNumber(GtsWavePumpEntity, RestoreNumber):
         self._attr_unique_id = f"{coordinator.device.address}_tidal_intensity"
         self._attr_native_value = 100.0
         self._baseline: list[int] | None = None
+        self._pending = None
+        self._store = Store(coordinator.hass, 1, f"gts_wavepump.{coordinator.device.address}.intensity")
+        self._loaded = False
+        coordinator.tidal_overlay = self
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
@@ -190,6 +195,27 @@ class TidalIntensityNumber(GtsWavePumpEntity, RestoreNumber):
             baseline = extra.as_dict().get("baseline")
             if isinstance(baseline, list):
                 self._baseline = [int(p) for p in baseline]
+        await self._load_operation()
+
+    async def _load_operation(self):
+        if self._loaded:
+            return
+        saved = await self._store.async_load()
+        if saved is not None:
+            baseline = saved.get("baseline")
+            if baseline is not None and (len(baseline) != 24 or
+                    any(type(p) is not int or not 0 <= p <= 255 for p in baseline)):
+                raise ValueError("invalid saved tidal baseline; manual recovery required")
+            if saved.get("pending") is not None and baseline is None:
+                raise ValueError("pending tidal write has no baseline; manual recovery required")
+            self._baseline = baseline
+            self._pending = saved.get("pending")
+            self._attr_native_value = saved.get("value", 100)
+        self._loaded = True
+
+    @property
+    def has_baseline(self):
+        return self._baseline is not None or self._pending is not None
 
     @property
     def extra_restore_state_data(self) -> _IntensityExtraData:
@@ -197,23 +223,33 @@ class TidalIntensityNumber(GtsWavePumpEntity, RestoreNumber):
 
     @property
     def extra_state_attributes(self) -> dict[str, object] | None:
-        return {"baseline_powers": self._baseline}
+        return {"baseline_powers": self._baseline, "recovery_required": self._pending is not None}
 
     async def async_set_native_value(self, value: float) -> None:
-        data = self.coordinator.data
-        if data is None or not data.tidal:
-            return  # no tidal curve read yet
-        current = [seg.power for seg in data.tidal]
-        # (Re)capture the baseline only when the device currently holds the full
-        # curve (level at 100%, or none stored) — never from a scaled curve.
-        if self._baseline is None or (self._attr_native_value or 0) >= 100:
-            self._baseline = current
-        factor = value / 100.0
-        scaled_powers = [
-            min(POWER_MAX, max(POWER_MIN, round(base * factor)))
-            for base in self._baseline
-        ]
-        await self.coordinator.device.async_write_tidal_powers(scaled_powers)
-        self._attr_native_value = float(value)
-        self.async_write_ha_state()
+        if not 10 <= value <= 100:
+            raise ValueError("tidal intensity must be between 10 and 100")
+        async with self.coordinator.device.operations.hold():
+            await self._load_operation()
+            data = self.coordinator.data
+            if data is None or len(data.tidal) != 24:
+                raise ValueError("complete tidal curve required before editing")
+            # Never recapture a partially applied curve after a failed write.
+            if self._baseline is None:
+                if self._attr_native_value != 100:
+                    raise ValueError("missing full-strength baseline; manual recovery required")
+                self._baseline = [seg.power for seg in data.tidal]
+            target = list(self._baseline) if value == 100 else [min(POWER_MAX, max(POWER_MIN, round(p * value / 100)))
+                      for p in self._baseline]
+            pending = {"value": float(value), "powers": target}
+            await self._store.async_save({"baseline": self._baseline,
+                "pending": pending, "value": self._attr_native_value})
+            self._pending = pending
+            self.async_write_ha_state()
+            await self.coordinator.device.async_write_tidal_powers(target)
+            baseline = None if value == 100 else self._baseline
+            await self._store.async_save({"baseline": baseline, "pending": None,
+                                          "value": float(value)})
+            self._baseline, self._pending = baseline, None
+            self._attr_native_value = float(value)
+            self.async_write_ha_state()
         await self.coordinator.async_request_refresh()

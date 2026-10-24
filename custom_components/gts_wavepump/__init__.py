@@ -17,6 +17,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from . import protocol
+from .control import OperationGate, OperationSuperseded, serialized
 from .const import (
     DOMAIN,
     NOTIFY_CHAR_CANDIDATES,
@@ -83,6 +84,9 @@ class GtsWavePumpDevice:
         self._hass = hass
         self._address = address
         self._client: BleakClientWithServiceCache | None = None
+        self.operations = OperationGate()
+        self.command_error: str | None = None
+        self._request_frame: bytes | None = None
         self._lock = asyncio.Lock()
         self._notify_future: asyncio.Future[bytes] | None = None
         self._write_char: str | None = None
@@ -174,12 +178,25 @@ class GtsWavePumpDevice:
         return write, notify
 
     def _notification_handler(self, _char, data: bytearray) -> None:
-        if self._notify_future is not None and not self._notify_future.done():
-            self._notify_future.set_result(bytes(data))
+        if self._notify_future is None or self._notify_future.done():
+            return
+        try:
+            interface, payload = protocol.parse_response(data)
+        except protocol.InvalidFrameError:
+            return
+        request = self._request_frame
+        if request is None or interface != request[1]:
+            return
+        if interface == protocol.IFACE_WRITE_CONFIG and payload != request[2:-1]:
+            return
+        # V2 does not have a proven per-request ACK identifier. All writes are
+        # additionally read back; a generic notification alone is not success.
+        self._notify_future.set_result(bytes(data))
 
     async def _send(self, frame: bytes, *, expect_response: bool) -> bytes | None:
         async with self._lock:
             client = await self._ensure_connected()
+            self._request_frame = frame
             if expect_response:
                 loop = asyncio.get_running_loop()
                 self._notify_future = loop.create_future()
@@ -194,17 +211,28 @@ class GtsWavePumpDevice:
                 return await asyncio.wait_for(
                     self._notify_future, timeout=RESPONSE_TIMEOUT
                 )
-            except asyncio.TimeoutError as err:
+            except (asyncio.TimeoutError, asyncio.CancelledError) as err:
+                # Do not reuse a notification stream with an outstanding late reply.
+                try:
+                    await client.disconnect()
+                except Exception:
+                    pass
+                self._client = None
+                if isinstance(err, asyncio.CancelledError):
+                    raise
                 raise UpdateFailed("timed out waiting for pump response") from err
             finally:
+                self._request_frame = None
                 self._notify_future = None
 
+    @serialized
     async def async_get_status(self) -> protocol.HeartbeatStatus:
         """Poll the heartbeat (interface 3) and return decoded status."""
         response = await self._send(protocol.build_heartbeat(), expect_response=True)
         assert response is not None
         return protocol.parse_heartbeat(response)
 
+    @serialized
     async def async_read_config(
         self, software_version: int | None
     ) -> tuple[dict[str, int], "list[protocol.TidalSegment]"]:
@@ -217,6 +245,7 @@ class GtsWavePumpDevice:
             protocol.parse_tidal(response),
         )
 
+    @serialized
     async def async_write_tidal(
         self, segments: "list[protocol.TidalSegment]"
     ) -> None:
@@ -225,31 +254,53 @@ class GtsWavePumpDevice:
         The pump only applies the first field of a multi-field config-v2 frame,
         so each mode/power/period is sent as its own single-field frame.
         """
+        status = await self.async_get_status()
+        if not protocol.uses_config_v2(status.software_version) or len(segments) != 24:
+            raise UpdateFailed("a complete curve and verified v2 firmware are required")
         for field_id, value in protocol.tidal_full_pairs(segments):
+            self.operations.check()
             await self._send(
                 protocol.build_frame(protocol.IFACE_READ_CONFIG_V2, [field_id, value]),
                 expect_response=True,
             )
 
+        _, observed = await self.async_read_config(status.software_version)
+        if observed != list(segments):
+            raise UpdateFailed("tidal write not confirmed; original baseline retained")
+
+    @serialized
     async def async_write_tidal_powers(self, powers: "list[int]") -> None:
         """Write only each segment's power (auto_p), one field per frame.
 
         The pump applies only the first field of a multi-field config-v2 frame,
         so each segment power is sent as its own single-field frame.
         """
+        status = await self.async_get_status()
+        if not protocol.uses_config_v2(status.software_version) or len(powers) != 24:
+            raise UpdateFailed("24 powers and verified v2 firmware are required")
         for field_id, value in protocol.tidal_power_pairs(powers):
+            self.operations.check()
             await self._send(
                 protocol.build_frame(protocol.IFACE_READ_CONFIG_V2, [field_id, value]),
                 expect_response=True,
             )
 
 
+        _, observed = await self.async_read_config(status.software_version)
+        if [segment.power for segment in observed] != list(powers):
+            raise UpdateFailed("tidal power write not confirmed; retry from retained baseline")
+
+    @serialized
     async def async_write_field(self, field: int, value: int) -> None:
         """Write a single config field by raw interface-1 id."""
-        await self._send(
-            protocol.build_write_field(field, value), expect_response=True
-        )
+        status = await self.async_get_status()
+        table = protocol.JC_FIELD_REQ if protocol.uses_new_table(status.software_version) else protocol.ZC_FIELD_IDS
+        name = next((name for name, number in table.items() if number == field), None)
+        if name is None:
+            raise UpdateFailed("raw field has no verified readback contract")
+        await self.async_write_named(name, value, status.software_version)
 
+    @serialized
     async def async_write_named(
         self, name: str, value: int, software_version: int | None
     ) -> None:
@@ -259,12 +310,43 @@ class GtsWavePumpDevice:
         earlier firmware takes single-field interface-1 writes. Verified on
         hardware that the light only responds to the config-v2 path.
         """
+        self.operations.check()
         if protocol.uses_config_v2(software_version):
             frame = protocol.build_config_v2_write(name, value)
         else:
             frame = protocol.build_config_write(name, value, software_version)
         await self._send(frame, expect_response=True)
+        if name == "manual_mode" and value in (protocol.MODE_OFF, protocol.MODE_FEED):
+            status = await self.async_get_status()
+            if status.error_code or status.current_mode != value:
+                self.command_error = "pump action was not confirmed by heartbeat"
+                raise UpdateFailed(self.command_error)
+            return
+        config, _ = await self.async_read_config(software_version)
+        if config.get(name) != value:
+            self.command_error = f"{name} write could not be confirmed"
+            raise UpdateFailed(self.command_error)
 
+    async def async_emergency_stop(self, software_version) -> None:
+        """Keep the outer operation locked until bounded cleanup finishes."""
+        async def stop():
+            frame = (protocol.build_config_v2_write("manual_mode", protocol.MODE_OFF)
+                     if protocol.uses_config_v2(software_version) else
+                     protocol.build_config_write("manual_mode", protocol.MODE_OFF, software_version))
+            await self._send(frame, expect_response=True)
+            response = await self._send(protocol.build_heartbeat(), expect_response=True)
+            state = protocol.parse_heartbeat(response)
+            if state.error_code or state.current_mode != protocol.MODE_OFF:
+                raise UpdateFailed("emergency stop not confirmed")
+        cleanup = asyncio.create_task(stop())
+        while not cleanup.done():
+            try:
+                await asyncio.shield(cleanup)
+            except asyncio.CancelledError:
+                continue
+        cleanup.result()
+
+    @serialized
     async def async_disconnect(self) -> None:
         if self._client is not None and self._client.is_connected:
             if self._notify_char is not None:
@@ -287,6 +369,7 @@ class GtsWavePumpCoordinator(DataUpdateCoordinator[PumpState]):
             update_interval=UPDATE_INTERVAL,
         )
         self.device = device
+        self.tidal_overlay = None
         # Shown as the HA device name (prefixes every entity's friendly name);
         # set to the config entry title in async_setup_entry.
         self.device_name = device.address
@@ -296,7 +379,7 @@ class GtsWavePumpCoordinator(DataUpdateCoordinator[PumpState]):
     async def _async_update_data(self) -> PumpState:
         try:
             status = await self.device.async_get_status()
-        except protocol.InvalidFrameError as err:
+        except (protocol.InvalidFrameError, OperationSuperseded) as err:
             raise UpdateFailed(f"malformed response: {err}") from err
         # Config read is best-effort: a transient failure keeps the last config
         # rather than failing the whole update (heartbeat is the primary data).

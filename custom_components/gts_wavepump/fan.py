@@ -8,12 +8,14 @@ intensity here: (1) forces manual mode, (2) re-asserts the current waveform,
 
 TODO(calibrate): the app displays current_power + 20 on sw > 4 and the real raw
 ceiling may be ~80, not 100; we currently map the HA percentage 1:1 onto the
-raw value. Also "off" here is power 0, not the app's dedicated 关机 command.
+raw value. Off uses the dedicated 关机 command and requires heartbeat confirmation.
 """
 
 from __future__ import annotations
 
 from typing import Any
+import asyncio
+import logging
 
 import voluptuous as vol
 
@@ -26,6 +28,8 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import GtsWavePumpCoordinator, protocol
 from .const import DOMAIN, POWER_DEFAULT_ON, POWER_MAX, POWER_MIN
 from .entity import GtsWavePumpEntity
+
+_LOGGER = logging.getLogger(__name__)
 
 SERVICE_SET_TIDAL_SCHEDULE = "set_tidal_schedule"
 _SEGMENT_SCHEMA = vol.Schema(
@@ -107,6 +111,11 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         return power > 0
 
     @property
+    def extra_state_attributes(self):
+        return {"recovery_required": self.coordinator.device.command_error is not None,
+                "command_error": self.coordinator.device.command_error}
+
+    @property
     def percentage(self) -> int | None:
         power = self._current_power
         if power is None:
@@ -122,6 +131,7 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
             await self._async_off()
             return
         await self._async_write_power(min(POWER_MAX, percentage))
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_on(
         self,
@@ -130,35 +140,31 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         **kwargs: Any,
     ) -> None:
         if percentage is not None:
-            await self._async_write_power(percentage)
+            await self.async_set_percentage(percentage)
             return
-        # Plain "turn on": resume the run mode the pump had before it was turned
-        # off — so a feeding off/on cycle returns to tide instead of forcing
-        # manual. Falls back to manual at the default power if it wasn't tide.
-        run_mode = self._run_mode_before_off
-        if run_mode is None and self.coordinator.data is not None:
-            # The pump retains its run mode across off/feed and HA reloads.
-            run_mode = self.coordinator.data.config.get("manual_or_auto")
-        if run_mode == protocol.MANUAL_OR_AUTO_TIDE:
-            await self._async_resume_tide()
-            return
-        await self._async_write_power(POWER_DEFAULT_ON)
+        device = self.coordinator.device
+        async with device.operations.hold():
+            config, _ = await device.async_read_config(self._software_version)
+            if config.get("manual_or_auto") == protocol.MANUAL_OR_AUTO_TIDE:
+                await self._async_resume_tide()
+            else:
+                await self._async_write_power(POWER_DEFAULT_ON)
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         await self._async_off()
 
     async def _async_off(self) -> None:
-        """Turn the pump off with the app's dedicated 关机 (manual_mode = 7).
-
-        Remembers the current run mode so a following turn_on can resume it.
-        """
-        if self.coordinator.data is not None:
-            self._run_mode_before_off = self.coordinator.data.config.get(
-                "manual_or_auto"
-            )
-        await self.coordinator.device.async_write_named(
-            "manual_mode", protocol.MODE_OFF, self._software_version
-        )
+        """A newer stop supersedes unfinished starts/curve writes."""
+        device = self.coordinator.device
+        device.operations.request_stop()
+        try:
+            async with device.operations.hold():
+                await device.async_write_named("manual_mode", protocol.MODE_OFF, self._software_version)
+                device.command_error = None
+        except (Exception, asyncio.CancelledError):
+            device.command_error = "stop unconfirmed; check pump"
+            raise
         await self.coordinator.async_request_refresh()
 
     async def async_set_tidal_schedule(self, segments: list[dict]) -> None:
@@ -171,7 +177,14 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
             )
             for s in segments
         ]
-        await self.coordinator.device.async_write_tidal(segs)
+        device = self.coordinator.device
+        async with device.operations.hold():
+            overlay = self.coordinator.tidal_overlay
+            if overlay is not None:
+                await overlay._load_operation()
+            if overlay is not None and overlay.has_baseline:
+                raise ValueError("restore tidal intensity to 100% before replacing the schedule")
+            await device.async_write_tidal(segs)
         await self.coordinator.async_request_refresh()
 
     async def _async_resume_tide(self) -> None:
@@ -181,40 +194,65 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
         off (manual_mode 7, power 0): it must first be running (a manual waveform
         at some power) and then switched to tide, which picks up the schedule.
         """
-        sw = self._software_version
-        mode = self._current_mode
-        if mode not in protocol.MANUAL_MODES:
-            mode = protocol.MANUAL_MODES[0]
-        device = self.coordinator.device
-        # 1) exit 关机 and start running (manual waveform at the default power)
-        await device.async_write_named(
-            "manual_or_auto", protocol.MANUAL_OR_AUTO_MANUAL, sw
-        )
-        await device.async_write_named("manual_mode", mode, sw)
-        await device.async_write_named(
-            protocol.power_field_name(mode, sw), POWER_DEFAULT_ON, sw
-        )
-        # 2) switch to tide so the tidal schedule resumes
-        await device.async_write_named(
-            "manual_or_auto", protocol.MANUAL_OR_AUTO_TIDE, sw
-        )
-        await self.coordinator.async_request_refresh()
+        async with self.coordinator.device.operations.hold():
+            sw = self._software_version
+            mode = self._current_mode
+            if mode not in protocol.MANUAL_MODES:
+                mode = protocol.MANUAL_MODES[0]
+            device = self.coordinator.device
+            try:
+                # 1) exit 关机 and start running (manual waveform at the default power)
+                await device.async_write_named(
+                    "manual_or_auto", protocol.MANUAL_OR_AUTO_MANUAL, sw
+                )
+                await device.async_write_named("manual_mode", mode, sw)
+                await device.async_write_named(
+                    protocol.power_field_name(mode, sw), POWER_DEFAULT_ON, sw
+                )
+                # 2) switch to tide so the tidal schedule resumes
+                await device.async_write_named(
+                    "manual_or_auto", protocol.MANUAL_OR_AUTO_TIDE, sw
+                )
+                status = await device.async_get_status()
+                if status.error_code or status.current_mode in (protocol.MODE_OFF, protocol.MODE_FEED):
+                    raise ValueError("running tide not confirmed by heartbeat")
+            except (Exception, asyncio.CancelledError):
+                device.command_error = "tide resume failed; checking safe stop"
+                try:
+                    await device.async_emergency_stop(sw)
+                    device.command_error = "tide resume failed; pump stopped, recovery required"
+                except Exception:
+                    device.command_error = "tide resume failed; stop unconfirmed, check pump"
+                    _LOGGER.exception(device.command_error)
+                raise
+            else:
+                device.command_error = None
 
     async def _async_write_power(self, raw_power: int) -> None:
         """Force manual mode, re-assert the waveform, then set its bank power."""
-        sw = self._software_version
-        mode = self._current_mode
-        if mode not in protocol.MANUAL_MODES:
-            mode = protocol.MANUAL_MODES[0]
-        device = self.coordinator.device
-        # 1) ensure manual mode so manual power actually applies
-        await device.async_write_named(
-            "manual_or_auto", protocol.MANUAL_OR_AUTO_MANUAL, sw
-        )
-        # 2) re-assert the current waveform as the active manual mode
-        await device.async_write_named("manual_mode", mode, sw)
-        # 3) write that mode's power bank
-        await device.async_write_named(
-            protocol.power_field_name(mode, sw), raw_power, sw
-        )
-        await self.coordinator.async_request_refresh()
+        async with self.coordinator.device.operations.hold():
+            sw = self._software_version
+            mode = self._current_mode
+            if mode not in protocol.MANUAL_MODES:
+                mode = protocol.MANUAL_MODES[0]
+            device = self.coordinator.device
+            try:
+                # 1) ensure manual mode so manual power actually applies
+                await device.async_write_named(
+                    "manual_or_auto", protocol.MANUAL_OR_AUTO_MANUAL, sw
+                )
+                # 2) re-assert the current waveform as the active manual mode
+                await device.async_write_named("manual_mode", mode, sw)
+                # 3) write that mode's power bank
+                await device.async_write_named(
+                    protocol.power_field_name(mode, sw), raw_power, sw
+                )
+            except (Exception, asyncio.CancelledError):
+                device.command_error = "manual start failed; checking safe stop"
+                try:
+                    await device.async_emergency_stop(sw)
+                except Exception:
+                    _LOGGER.exception("Manual start failed and stop is unconfirmed")
+                raise
+            else:
+                device.command_error = None

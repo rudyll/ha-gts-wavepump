@@ -53,13 +53,14 @@ class WaterModeSelect(GtsWavePumpEntity, SelectEntity):
         return self._value_to_slug.get(value)
 
     async def async_select_option(self, option: str) -> None:
-        value = self._slug_to_value[option]
-        sw = self.coordinator.data.software_version if self.coordinator.data else None
-        # Selecting a waveform implies manual mode.
-        await self.coordinator.device.async_write_named(
-            "manual_or_auto", protocol.MANUAL_OR_AUTO_MANUAL, sw
-        )
-        await self.coordinator.device.async_write_named("manual_mode", value, sw)
+        async with self.coordinator.device.operations.hold():
+            value = self._slug_to_value[option]
+            sw = self.coordinator.data.software_version if self.coordinator.data else None
+            # Selecting a waveform implies manual mode.
+            await self.coordinator.device.async_write_named(
+                "manual_or_auto", protocol.MANUAL_OR_AUTO_MANUAL, sw
+            )
+            await self.coordinator.device.async_write_named("manual_mode", value, sw)
         await self.coordinator.async_request_refresh()
 
 

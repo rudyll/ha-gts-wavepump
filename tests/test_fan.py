@@ -7,6 +7,8 @@ Run: python3 -m unittest discover -s tests -p test_fan.py -v
 from __future__ import annotations
 
 import ast
+import asyncio
+import logging
 import importlib.util
 from enum import IntFlag
 from pathlib import Path
@@ -26,6 +28,7 @@ def load_module(name, path):
     return module
 
 
+control = load_module('fan_control', ROOT / 'control.py')
 protocol = load_module("fan_test_protocol", ROOT / "protocol.py")
 const = load_module("fan_test_const", ROOT / "const.py")
 
@@ -52,7 +55,7 @@ def load_fan():
     isolated = ast.Module(body=[ast.ImportFrom(module="__future__", names=[
         ast.alias(name="annotations")], level=0), cls], type_ignores=[])
     ast.fix_missing_locations(isolated)
-    namespace = dict(protocol=protocol, GtsWavePumpEntity=Entity,
+    namespace = dict(asyncio=asyncio, _LOGGER=logging.getLogger("test"), protocol=protocol, GtsWavePumpEntity=Entity,
                      FanEntity=FanEntity, FanEntityFeature=Features,
                      POWER_DEFAULT_ON=const.POWER_DEFAULT_ON,
                      POWER_MIN=const.POWER_MIN, POWER_MAX=const.POWER_MAX)
@@ -65,10 +68,11 @@ Fan = load_fan()
 
 class FanTests(unittest.IsolatedAsyncioTestCase):
     def make_fan(self, run_mode=protocol.MANUAL_OR_AUTO_TIDE, sw=17):
-        device = SimpleNamespace(address="test-pump", async_write_named=AsyncMock())
-        coordinator = SimpleNamespace(device=device, async_request_refresh=AsyncMock(),
+        device = SimpleNamespace(address="test-pump", operations=control.OperationGate(), command_error=None, async_get_status=AsyncMock(return_value=SimpleNamespace(error_code=0,current_mode=3,current_power=55)), async_emergency_stop=AsyncMock(), async_write_named=AsyncMock())
+        coordinator = SimpleNamespace(device=device, tidal_overlay=None, async_request_refresh=AsyncMock(),
             data=SimpleNamespace(software_version=sw, current_mode=3,
                 current_power=55, config={"manual_or_auto": run_mode}))
+        device.async_read_config = AsyncMock(side_effect=lambda sw: (dict(coordinator.data.config), []))
         return Fan(coordinator), coordinator
 
     async def test_tide_off_on_restarts_before_returning_to_tide(self):
