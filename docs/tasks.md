@@ -77,3 +77,14 @@ updated exactly with changelog. Public ancestry/private exclusion PASS. No HA/de
 action or publication; R11/F28 remains pending explicit approval. Paired report
 is Zetlight docs/release-preflight-20261026.md. Next publication decision, strong
 reasoning; primary GTS private history must never be pushed.
+
+### F28-R01 / GTS-R11 publication authorization — 2026-10-26
+
+Source: Rudy explicitly says “可以” to formal paired publication of GTS0.7.0 and
+Zetlight0.23.0. Codex/P1, dependencies F28-P01/R11-P01 complete. ACTIVE: authorize
+final default-branch push, matching vtags and non-draft/non-prerelease GitHub
+Releases with exact reviewed changelog notes, followed by remote verification.
+Scope excludes HA installation/reload/import/activation and all device actions.
+Use isolated public GTS tree, never primary private acceptance-history branch.
+Success: remote versions/tags/final commit/official status/exact notes match.
+Next complete and record actual remote readback, strong reasoning.

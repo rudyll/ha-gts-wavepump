@@ -1,3 +1,16 @@
+## Latest: paired formal publication authorized and in progress — 2026-10-26
+
+Rudy explicitly replies “可以” to publishing GTS0.7.0 and Zetlight0.23.0: push final
+contents, create version tags and official GitHub/HACS releases. This does not
+include HA installation/reload, blueprint import/activation or device actions.
+F28/R11 publication is now authorized, superseding previous pending-approval
+entries. Software preflight remains71GTS/102Zetlight tests,41/52subtests plus
+native offline/joint validation; private acceptance history excluded. Remote
+publication will only be marked complete after manifest/tag/Release/notes readback.
+Next verify paired publication, strong reasoning; physical acceptance remains open.
+
+---
+
 ## Latest: F28 preflight complete; publication decision pending — 2026-10-26
 
 Release preflight found and fixed ambiguous storm failure telemetry: confirmed
