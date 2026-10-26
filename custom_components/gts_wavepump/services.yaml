@@ -20,3 +20,43 @@ set_tidal_schedule:
         - { mode: 3, power: 60, period: 1.0 }
       selector:
         object:
+
+storm_gain:
+  name: Storm gain from daily baseline
+  description: >-
+    Transient current-hour gain from the original daily curve, without rewriting
+    the curve or multiplying weather gain twice. Requires a running pump,
+    matching expected run mode and confirmation that pump and HA clocks agree.
+    Preloads bounded power/period before switching to manual. Readback confirms
+    setpoints, not physical flow. Use only through a guarded ownership workflow.
+  target:
+    entity:
+      integration: gts_wavepump
+      domain: fan
+  fields:
+    gain:
+      name: Daily-baseline gain
+      required: true
+      selector:
+        number: {min: 100, max: 200, step: 5, unit_of_measurement: "%"}
+    power_ceiling:
+      name: Raw power ceiling
+      required: true
+      selector:
+        number: {min: 1, max: 99, step: 1}
+    wave_mode:
+      name: Waveform (daily keeps this hour's waveform)
+      default: daily
+      selector:
+        select: {options: [daily, surge, turbulence, pulse]}
+    expected_run_mode:
+      name: Expected current run mode
+      default: tide
+      selector:
+        select: {options: [tide, manual]}
+    clock_confirmed:
+      name: Pump clock confirmed equal to HA local time
+      required: true
+      default: false
+      selector:
+        boolean:

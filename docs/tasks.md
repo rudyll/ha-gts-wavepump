@@ -52,3 +52,17 @@ or HA/device change. Formal non-prerelease publication awaits explicit approval
 under global high-impact-change rule; source GitHub update authority stays valid.
 Use this isolated public branch, never primary private acceptance history.
 Next R11 publish paired with Zetlight0.23.0 if approved, strong reasoning.
+
+## GTS-R12 — baseline-relative transient storm action (2026-10-26)
+
+Rudy approves linked ZetlightF26-P01 source/tests before release. Codex/P1;
+depends R10. SOURCE/TEST COMPLETE: storm_gain reads fresh config/current hour
+under operation lock, immutable baseline, cap/weather/off/feed/pending/clock
+guards, bank preloading before mode selection and confirmed heartbeat/failure
+stop.70tests/41subtests; actual blueprint→fan method day/night simulation passes.
+No live HA connection/device operation. Config-v2 only; manual banks retain the
+last transient setpoint. Actual tank flow and clock agreement unverified.
+Source is in this public-isolated worktree, not primary private acceptance branch.
+R11 publication remains HELD pending explicit approval; changelog/release body
+updated to include software scope. Next R11/F28 review, strong reasoning, then
+separately authorized supervised deployment/acceptance.

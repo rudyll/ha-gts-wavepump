@@ -10,12 +10,19 @@
 - Keep the existing raw power cap99 on scaled segments. This is a software bound,
   not a measured safe flow limit; clipped peaks no longer preserve exact ratios.
   Gain percentages do not establish proportional physical water flow.
-- Clarify the entity label as tidal gain.57 tests and28 subtests passed with
+- Add storm_gain: transient peak/gap targets from the original current-hour daily
+  baseline, with raw cap and expected-run-mode/clock/overlay/off/feed guards.
+  Preload bounded power/period before mode selection; confirm heartbeat and attempt
+  safe stop on failure after possible output change. Config-v2 firmware only.
+  No daily-curve rewrite or compounded weather gain; manual banks keep setpoints.
+- Clarify the entity label as tidal gain.70 tests and41 subtests passed with
   simulated transport/storage; no gain or storm hardware test is claimed.
 - Upgrade: install then restart/reload the integration at an approved time. Do
   not delete overlay storage or recapture a boosted curve as your normal curve.
   Weather blueprints require a separate import/update and entity-capability check.
-  Existing fixed-setpoint storm drafts are not a completed baseline-gain policy.
+  Use the separate baseline-relative storm blueprint; existing fixed-setpoint
+  drafts retain their old semantics. Confirm pump/HA clocks agree; no pump-clock
+  readback exists. A failed storm command can stop the pump and needs inspection.
   This release does not activate any weather automation or change gain by itself.
 
 ## 0.6.2

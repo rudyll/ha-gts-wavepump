@@ -1,3 +1,23 @@
+## Latest: F26-P01 relative storm source/tests complete, release held — 2026-10-26
+
+Rudy approves completing relative storm before formal publication. New additive
+whole_tank_storm_gain blueprint requires GTS storm_gain and explicit pump/HA clock
+agreement. Immutable daily baseline for both phases, gap >= current weather gain,
+raw/gain caps, hour/off guards and owned tide restoration. Legacy storm_v2 unchanged.
+70GTS/102Zetlight tests with41/52subtests pass; joint actual templates→fan method
+simulations and offline native HA expanded-config validation pass. No HA connection,
+config write/reload, device operation, activation, new monitor or publication.
+
+GTS source belongs to public-isolated worktree /private/tmp/gts-weather-gain-public-20261026;
+never push primary private acceptance history. Prepared0.7.0/0.23.0 changelogs and
+release bodies now include this SOFTWARE scope. Physical flow/clock/night/restoration
+acceptance and formal publication remain unapproved. See docs/storm-gain.md in
+Zetlight for defaults/migration/limitations. Next F28/GTS-R11 paired release review,
+strong reasoning; then separately authorized deployment/acceptance. Historical
+notes below about unfinished F26-P01 are superseded by this entry for source only.
+
+---
+
 ## Latest:0.7.0 release files prepared, not published — 2026-10-26
 
 User asks about missing version update. Prepared manifest0.7.0 and changelog with

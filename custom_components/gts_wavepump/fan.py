@@ -23,15 +23,17 @@ from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv, entity_platform
+from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import GtsWavePumpCoordinator, protocol
+from . import GtsWavePumpCoordinator, protocol, storm
 from .const import DOMAIN, POWER_DEFAULT_ON, POWER_MAX, POWER_MIN
 from .entity import GtsWavePumpEntity
 
 _LOGGER = logging.getLogger(__name__)
 
 SERVICE_SET_TIDAL_SCHEDULE = "set_tidal_schedule"
+SERVICE_STORM_GAIN = "storm_gain"
 _SEGMENT_SCHEMA = vol.Schema(
     {
         vol.Required("mode"): vol.In(protocol.MANUAL_MODES),
@@ -61,6 +63,18 @@ async def async_setup_entry(
             )
         },
         "async_set_tidal_schedule",
+    )
+
+    platform.async_register_entity_service(
+        SERVICE_STORM_GAIN,
+        {
+            vol.Required("gain"): vol.All(vol.Coerce(float), vol.Range(min=100, max=200)),
+            vol.Required("power_ceiling"): vol.All(vol.Coerce(int), vol.Range(min=1, max=99)),
+            vol.Optional("wave_mode", default="daily"): vol.In(["daily", "surge", "turbulence", "pulse"]),
+            vol.Optional("expected_run_mode", default="tide"): vol.In(["tide", "manual"]),
+            vol.Required("clock_confirmed"): cv.boolean,
+        },
+        "async_storm_gain",
     )
 
 
@@ -185,6 +199,73 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
             if overlay is not None and overlay.has_baseline:
                 raise ValueError("restore tidal intensity to 100% before replacing the schedule")
             await device.async_write_tidal(segs)
+        await self.coordinator.async_request_refresh()
+
+    async def async_storm_gain(self, gain: float, power_ceiling: int,
+                               wave_mode: str = "daily", expected_run_mode: str = "tide",
+                               clock_confirmed: bool = False) -> None:
+        """Apply one bounded, transient setpoint; never rewrite the daily curve."""
+        if clock_confirmed is not True:
+            raise ValueError("confirm pump clock matches Home Assistant local time first")
+        device = self.coordinator.device
+        async with device.operations.hold():
+            status = await device.async_get_status()
+            sw = status.software_version
+            if not protocol.uses_config_v2(sw):
+                raise ValueError("verified per-wave config-v2 banks required")
+            config, segments = await device.async_read_config(sw)
+            expected = {"tide": protocol.MANUAL_OR_AUTO_TIDE,
+                        "manual": protocol.MANUAL_OR_AUTO_MANUAL}.get(expected_run_mode)
+            if (expected is None or config.get("manual_or_auto") != expected or
+                    status.error_code or status.current_mode not in protocol.MANUAL_MODES or
+                    status.current_power <= 0):
+                raise ValueError("running mode changed, stopped, feeding or unconfirmed")
+            overlay = self.coordinator.tidal_overlay
+            if overlay is None:
+                raise ValueError("tidal gain entity required")
+            await overlay._load_operation()
+            if overlay._pending is not None:
+                raise ValueError("finish pending curve recovery before storm control")
+            if len(segments) != 24:
+                raise ValueError("complete current tidal schedule required")
+            baseline = storm.daily_baseline(overlay._baseline,
+                [segment.power for segment in segments], overlay._attr_native_value)
+            # Resolve the hour after taking the operation lock, not at trigger time.
+            hour = dt_util.now().hour
+            target = storm.storm_target(baseline, hour, gain,
+                                       overlay._attr_native_value, power_ceiling)
+            segment = segments[hour]
+            if (segment.mode not in protocol.MANUAL_MODES or type(segment.period) is not int
+                    or not 0 <= segment.period <= 255):
+                raise ValueError("current daily waveform/period cannot be used")
+            modes = {"surge": 6, "turbulence": 4, "pulse": 2}
+            mode = segment.mode if wave_mode == "daily" else modes.get(wave_mode)
+            if mode is None:
+                raise ValueError("unsupported storm waveform")
+            power_field = protocol.power_field_name(mode, sw)
+            period_field = protocol.period_field_name(mode, sw)
+            may_affect_output = expected == protocol.MANUAL_OR_AUTO_MANUAL
+            try:
+                # Prime inactive banks BEFORE a waveform/manual switch can use them.
+                await device.async_write_named(power_field, target.power, sw)
+                await device.async_write_named(period_field, segment.period, sw)
+                may_affect_output = True
+                await device.async_write_named("manual_mode", mode, sw)
+                await device.async_write_named("manual_or_auto", protocol.MANUAL_OR_AUTO_MANUAL, sw)
+                observed = await device.async_get_status()
+                if (observed.error_code or observed.current_mode != mode or
+                        observed.current_power != target.power):
+                    raise ValueError("storm setpoint not confirmed")
+            except (Exception, asyncio.CancelledError):
+                device.command_error = "storm gain failed; inspect automation trace"
+                if may_affect_output:
+                    try:
+                        await device.async_emergency_stop(sw)
+                    except Exception:
+                        _LOGGER.exception("Storm gain failed and stop is unconfirmed")
+                raise
+            else:
+                device.command_error = None
         await self.coordinator.async_request_refresh()
 
     async def _async_resume_tide(self) -> None:
