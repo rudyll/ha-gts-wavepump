@@ -113,7 +113,16 @@ class ServiceTests(unittest.IsolatedAsyncioTestCase):
    if cancel:self.cancel_field='manual_or_auto'
    else:self.fail_field='manual_or_auto'
    with self.assertRaises(asyncio.CancelledError if cancel else OSError):await self.apply(fan)
-   c.device.async_emergency_stop.assert_awaited_once();self.assertIn('storm gain failed',c.device.command_error)
+   c.device.async_emergency_stop.assert_awaited_once();self.assertIn('pump stopped, recovery required',c.device.command_error)
+ async def test_failed_cleanup_is_visible_and_preserves_original_failure(self):
+  for cancel in [False,True]:
+   fan,c,_=self.make()
+   if cancel:self.cancel_field='manual_or_auto'
+   else:self.fail_field='manual_or_auto'
+   c.device.async_emergency_stop.side_effect=OSError('cleanup link lost')
+   with self.assertRaises(asyncio.CancelledError if cancel else OSError):await self.apply(fan)
+   self.assertIn('stop unconfirmed',c.device.command_error)
+   self.assertNotIn('pump stopped',c.device.command_error)
  async def test_unconfirmed_readback_never_reports_success(self):
   fan,c,_=self.make();self.mismatch=True
   with self.assertRaisesRegex(ValueError,'not confirmed'):await self.apply(fan)

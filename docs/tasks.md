@@ -66,3 +66,14 @@ Source is in this public-isolated worktree, not primary private acceptance branc
 R11 publication remains HELD pending explicit approval; changelog/release body
 updated to include software scope. Next R11/F28 review, strong reasoning, then
 separately authorized supervised deployment/acceptance.
+
+### GTS-R11-P01 — preflight stop-diagnostic correction (2026-10-26)
+
+User “继续” advances local review, not formal publication. Codex/P1, R12 dependency.
+DONE for source preflight: reproduced two failing diagnostic assertions, then
+exposed confirmed-stop/recovery versus stop-unconfirmed, preserving failure/cancel.
+71tests/41subtests and joint/native offline validation PASS. Candidate0.7.0 body
+updated exactly with changelog. Public ancestry/private exclusion PASS. No HA/device
+action or publication; R11/F28 remains pending explicit approval. Paired report
+is Zetlight docs/release-preflight-20261026.md. Next publication decision, strong
+reasoning; primary GTS private history must never be pushed.

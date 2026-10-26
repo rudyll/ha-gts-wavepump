@@ -13,9 +13,10 @@
 - Add storm_gain: transient peak/gap targets from the original current-hour daily
   baseline, with raw cap and expected-run-mode/clock/overlay/off/feed guards.
   Preload bounded power/period before mode selection; confirm heartbeat and attempt
-  safe stop on failure after possible output change. Config-v2 firmware only.
+  safe stop on failure after possible output change. Distinguish confirmed stop/
+  recovery required from unconfirmed stop in command_error. Config-v2 firmware only.
   No daily-curve rewrite or compounded weather gain; manual banks keep setpoints.
-- Clarify the entity label as tidal gain.70 tests and41 subtests passed with
+- Clarify the entity label as tidal gain.71 tests and41 subtests passed with
   simulated transport/storage; no gain or storm hardware test is claimed.
 - Upgrade: install then restart/reload the integration at an approved time. Do
   not delete overlay storage or recapture a boosted curve as your normal curve.

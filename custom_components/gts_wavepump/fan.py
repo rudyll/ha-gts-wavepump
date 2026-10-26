@@ -257,12 +257,14 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
                         observed.current_power != target.power):
                     raise ValueError("storm setpoint not confirmed")
             except (Exception, asyncio.CancelledError):
-                device.command_error = "storm gain failed; inspect automation trace"
+                device.command_error = "storm gain preparation failed; mode switch not attempted"
                 if may_affect_output:
                     try:
                         await device.async_emergency_stop(sw)
+                        device.command_error = "storm gain failed; pump stopped, recovery required"
                     except Exception:
-                        _LOGGER.exception("Storm gain failed and stop is unconfirmed")
+                        device.command_error = "storm gain failed; stop unconfirmed, check pump"
+                        _LOGGER.exception(device.command_error)
                 raise
             else:
                 device.command_error = None

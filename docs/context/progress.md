@@ -1,3 +1,18 @@
+## Latest: F28 preflight complete; publication decision pending — 2026-10-26
+
+Release preflight found and fixed ambiguous storm failure telemetry: confirmed
+stop/recovery versus stop unconfirmed. GTS71tests/41subtests PASS; Zetlight source
+unchanged since102tests/52subtests PASS. Native offline config/service validation
+and paired day/night actual-template→fan simulation PASS. Version/changelog/body
+and private-history exclusion checks PASS. Read-only remote official versions
+remain0.6.2/0.22.0, candidate tags absent. Known F27-A01 diagnostic width issue is
+explicit in0.23.0 release notes, remains an open proposal. No publication/HA/
+device action or monitor. See Zetlight docs/release-preflight-20261026.md.
+Next F28/GTS-R11 explicit publication decision, strong reasoning; no further
+consequential action inferred from “继续”. Earlier evidence remains historical.
+
+---
+
 ## Latest: F26-P01 relative storm source/tests complete, release held — 2026-10-26
 
 Rudy approves completing relative storm before formal publication. New additive
