@@ -73,7 +73,7 @@
         "name": "Communication channel"
       },
       "tidal_intensity": {
-        "name": "Tidal intensity"
+        "name": "Tidal gain"
       }
     },
     "sensor": {

@@ -82,10 +82,15 @@ Notes:
 - The **tidal curve** is read-only as a sensor and writable in bulk via the
   `set_tidal_schedule` service; there is no per-segment editor UI (use the app
   for visual editing, or the service from automations).
-- **Tidal intensity** scales the whole 24-segment curve by a percentage from a
-  persisted baseline (drift-free; 100% restores exactly) — for coral acclimation
-  — without changing each hour's waveform or relative power. Only effective in
-  tide mode.
+- **Tidal intensity / gain** scales the existing24-segment daily curve from an
+  immutable persisted baseline:100% restores the original exactly, below100
+  attenuates for acclimation and above100 adds weather gain (source candidate
+  range10–200%, not deployed/released). Each result remains capped by the existing
+  raw power limit99; this is a software bound, not a tank-specific safe flow limit.
+  Hourly waveforms stay unchanged; peaks flatten where clipping occurs. Gain is
+  computed from the original, never from a previously scaled curve, including
+  retry/restart. Only effective in tide mode. The currently released0.6.2 entity
+  still limits the overlay to100%; no device or HA update is implied here.
 
 ## How it works
 

@@ -24,3 +24,21 @@ These findings were subsequently approved for implementation by Rudy: fix all pr
 | GTS-R06 | Rudy: fix all problems | Codex / P0 | A01 operation ordering and failed/cancelled start recovery | Implemented and tested; deployed | Generation gate, queued stale-work rejection, failure/cancel safe stop, explicit unconfirmed-stop error; normal native feed→tide live test passed | Retain abnormal BLE loss injection as a separate supervised test |
 | GTS-R07 | Rudy: fix all problems | Codex / P1 | A02 immutable durable baseline | Implemented and software-tested; deployed | Original/pending state saved before hardware; restart/retry does not compound scaling; full curve readback | No live schedule corruption/failure injection performed; retry explicitly after real failure |
 | GTS-R08 | Rudy: fix all problems | Codex / P1 | A03 response framing/matching/readback | Implemented, software-tested and normal native path tested | Invalid/wrong interface/field ignored; generic v2 ACK requires readback; timeout/cancel disconnects stream. Real feed and resume confirmed | Protocol lacks proven v2 request token; readback remains required |
+
+## GTS-R10 — bounded daily-baseline gain source candidate (2026-10-26)
+
+User clarifies that normal100% must preserve the tuned daily curve; adverse
+weather adds gain above100 rather than reducing normal first. Public source
+candidate expands tidal gain10–200, retains raw POWER_MAX99 and immutable24h
+baseline. Repeated writes/retry/restart do not compound;100 restores exactly.
+Requested/persisted invalid gains are rejected. Entity IDs/storage keys unchanged.
+
+Software scope:57 local tests/28subtests passed before publication; matching
+weather-blueprint source has a live entity-max guard. Neither gain nor command
+percentage proves actual flow. Firmware/hardware bounds not recharacterized.
+No integration version/tag/HACS release or live deployment performed. Released
+0.6.2 still exposes max100; paired publication is source only. User authorizes
+GitHub update, not device operation. Owner Codex/P1; next linked F26-P01 strong
+reasoning: align manual storm to daily baseline, then separately approve a
+coordinated release/installation/test window. Private raw acceptance records
+from unrelated local history are excluded from this publication tree.

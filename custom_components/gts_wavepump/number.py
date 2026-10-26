@@ -160,9 +160,10 @@ class _IntensityExtraData(ExtraStoredData):
 class TidalIntensityNumber(GtsWavePumpEntity, RestoreNumber):
     """Overlay that scales the whole tidal (auto) curve by a percentage.
 
-    For coral acclimation: lower the whole day's flow proportionally and raise
-    it back toward 100%, WITHOUT changing each hour's waveform or relative
-    power. Only effective in tide (auto) mode. Scaling is always computed from a
+    100% is the existing daily curve; below100 attenuates it and above100 adds
+    relative weather gain. Each result is bounded by the existing raw POWER_MAX;
+    clipped peaks need not preserve relative power. Waveforms are unchanged.
+    Only effective in tide (auto) mode. Scaling is always computed from a
     stored baseline (the 100% curve), so it is drift-free and 100% restores the
     original exactly. Baseline + level persist across restarts.
     """
@@ -171,7 +172,7 @@ class TidalIntensityNumber(GtsWavePumpEntity, RestoreNumber):
     _attr_icon = "mdi:waves-arrow-up"
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_native_min_value = 10
-    _attr_native_max_value = 100
+    _attr_native_max_value = 200
     _attr_native_step = 5
     _attr_mode = NumberMode.SLIDER
 
@@ -202,6 +203,10 @@ class TidalIntensityNumber(GtsWavePumpEntity, RestoreNumber):
             return
         saved = await self._store.async_load()
         if saved is not None:
+            value = saved.get("value", 100)
+            if (isinstance(value, bool) or not isinstance(value, (int, float)) or
+                    not self._attr_native_min_value <= value <= self._attr_native_max_value):
+                raise ValueError("invalid saved tidal gain; manual recovery required")
             baseline = saved.get("baseline")
             if baseline is not None and (len(baseline) != 24 or
                     any(type(p) is not int or not 0 <= p <= 255 for p in baseline)):
@@ -210,7 +215,7 @@ class TidalIntensityNumber(GtsWavePumpEntity, RestoreNumber):
                 raise ValueError("pending tidal write has no baseline; manual recovery required")
             self._baseline = baseline
             self._pending = saved.get("pending")
-            self._attr_native_value = saved.get("value", 100)
+            self._attr_native_value = value
         self._loaded = True
 
     @property
@@ -226,8 +231,9 @@ class TidalIntensityNumber(GtsWavePumpEntity, RestoreNumber):
         return {"baseline_powers": self._baseline, "recovery_required": self._pending is not None}
 
     async def async_set_native_value(self, value: float) -> None:
-        if not 10 <= value <= 100:
-            raise ValueError("tidal intensity must be between 10 and 100")
+        if (isinstance(value, bool) or not isinstance(value, (int, float)) or
+                not self._attr_native_min_value <= value <= self._attr_native_max_value):
+            raise ValueError("tidal gain must be between 10 and 200")
         async with self.coordinator.device.operations.hold():
             await self._load_operation()
             data = self.coordinator.data

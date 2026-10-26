@@ -73,7 +73,7 @@
         "name": "通信频道"
       },
       "tidal_intensity": {
-        "name": "潮汐强度"
+        "name": "潮汐增益"
       }
     },
     "sensor": {

@@ -1,3 +1,19 @@
+## Latest source candidate: GTS-R10 bounded weather gain — 2026-10-26
+
+Normal100 preserves the tuned24h curve; above100 adds gain from that baseline.
+Candidate entity range10–200, raw99 ceiling unchanged, exact100 restore and
+retry/restart invariants tested. Invalid requested/saved values fail before writes.
+57tests/28subtests passed on implementation; isolated public tree test below.
+
+User authorizes GitHub source update. This tree contains only source/tests and
+necessary notes, excluding unrelated private acceptance artifacts in local history.
+No manifest/version/tag/release, HA/device change or new monitor. Deployed0.6.2
+remains max100. Related weather blueprint checks live capability; fixed manual
+storm needs baseline-relative redesign before activation. Next GTS-R10/F26-P01,
+strong reasoning; release/installation remains separate and unapproved.
+
+---
+
 ## Publication verified — 2026-10-24
 
 - [rudyll/ha-gts-wavepump 0.6.2](https://github.com/rudyll/ha-gts-wavepump/releases/tag/v0.6.2): remote manifest, annotated tag target, latest release, non-draft/non-prerelease status, and exact changelog notes verified. Release source commit `70a2dec2314f`.
