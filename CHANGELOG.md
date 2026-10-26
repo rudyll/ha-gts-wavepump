@@ -1,10 +1,18 @@
 # Changelog
 
-## Unreleased — App-unit headroom correction
+## 0.8.0 — 2026-10-26
 
 - Separate raw0–99 from newer-firmware App nonzero raw+20 (max119). Calculate gain in App units and dynamic headroom from the full daily peak; integer step1, zeros retained,100% exact restore, no peak clipping. Legacy<=4 display remains raw with99 ceiling.
-- Fresh-read and reject external tidal edits before curve/storm writes. Require explicitapp_percent storm service basis and block ambiguous legacy persisted gains until explicit recovery. Update paired blueprints/instances before enabling; HA fan percentage compatibility retained.
--75 tests/41subtests, paired native HA validation and three-baseline template-to-service simulations passed. No installation or physical-flow acceptance. See docs/app-power-gain.md.
+- Fresh-read and reject external tidal edits before curve/storm writes. Require explicit app_percent storm service basis and block ambiguous legacy persisted gains until explicit recovery. Update paired blueprints/instances before enabling; HA fan percentage compatibility retained.
+- 75 tests/41subtests, paired native HA validation and three-baseline template-to-service simulations passed. No installation or physical-flow acceptance. See docs/app-power-gain.md.
+
+- Upgrade: disable weather/storm automation before installing. Update the paired
+  weather/storm blueprints and saved instance inputs; storm_gain now requires
+  gain_basis=app_percent. If legacy gain is not100% or has pending writes, stop
+  migration and explicitly recover under the old version; never delete baseline
+  storage or reverse a clipped curve. Do not blindly restore a user-edited curve.
+  Reload/restart in an approved window. This release does not enable automations.
+  Confirm clock agreement before storm control; no pump-clock readback exists.
 
 ## 0.7.0 — 2026-10-26
 

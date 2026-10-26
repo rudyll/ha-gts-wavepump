@@ -1,3 +1,19 @@
+## Latest: F35-P01已备好版本与升级说明，待正式发布/部署授权 — 2026-10-26
+
+Rudy“继续”推进安全本地准备：候选GTS0.8.0/积光0.25.0版本、CHANGELOG和发布
+正文一致；相对前次239项测试的可执行源码/蓝图哈希全部未变，仅manifest更新。
+复用既有测试证据，未宣称重跑。GitHub只读核实正式版本仍0.7.0/0.24.1、main
+未变，对应新标签未出现，GTS隔离公开分支不包含私有历史。未推送/打标签/Release，
+未访问或修改现场HA/设备，未新建监测。上轮天气/风暴暂停仍是最近已核实状态。
+
+待审阅方案为配对正式发布和受保护HA升级：一次重启，短暂暂停并原样恢复两条
+启动控制规则；允许集成启动校时/必要临时模式恢复，无泵灯动作测试，天气/风暴
+保持OFF。不自动采纳灯光基线，不安装DualKey。详见积光docs/headroom-release-
+preflight-20261026.md。下一项F35-D01/R14-D01明确授权，强推理；基线确认与恢复
+天气联动、DK-R14 OTA各自保留后续验收/授权，不把准备视为已上线。
+
+---
+
 ## Latest: GTS-R14 / ZetlightF35 App119 dynamic headroom prepared — 2026-10-26
 
 Rudy confirms119% is App selectable maximum, not merely red warning. Source uses

@@ -101,3 +101,14 @@ paused only, with persistent initial_statefalse and backup; candidate instances
 private/not applied. Next R14-D01/F35-D01 coordinated release/install approval,
 current lamp baseline confirmation, runtime verification and authorized resume,
 strong reasoning. No physical-safety or red-color interpretation claimed.
+
+### F35-P01 — versioned release preparation (2026-10-26)
+
+Source: Rudy“继续”; Codex/P1; F35 source checks prerequisite. DONE for local
+preparation: manifests0.8.0/0.25.0, matching changelog and release bodies, unchanged
+tested executable/blueprint hashes, public remote heads/tag availability and
+private-history exclusion verified. Existing75/164tests and41/91subtests reused,
+not rerun. No push/tag/Release/HA/device mutation. See paired Zetlight docs/headroom-release-preflight-
+20261026.md. F35-D01/R14-D01 OPEN pending explicit publication/guarded-install
+scope; weather/storm remain disabled and current lamp adoption separate. Strong
+reasoning next. DualKey firmware not included.
