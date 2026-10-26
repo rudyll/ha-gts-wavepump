@@ -42,3 +42,13 @@ GitHub update, not device operation. Owner Codex/P1; next linked F26-P01 strong
 reasoning: align manual storm to daily baseline, then separately approve a
 coordinated release/installation/test window. Private raw acceptance records
 from unrelated local history are excluded from this publication tree.
+
+## GTS-R11 — release preparation after version question (2026-10-26)
+
+User asks why integration versions were not updated. Prepared0.7.0 manifest and
+matching changelog/release body,57tests/28subtests PASS; intended tag absent and
+current official version0.6.2 verified. Local candidate only, no new tag/Release
+or HA/device change. Formal non-prerelease publication awaits explicit approval
+under global high-impact-change rule; source GitHub update authority stays valid.
+Use this isolated public branch, never primary private acceptance history.
+Next R11 publish paired with Zetlight0.23.0 if approved, strong reasoning.

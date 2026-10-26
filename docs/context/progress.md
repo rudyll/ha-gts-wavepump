@@ -1,3 +1,15 @@
+## Latest:0.7.0 release files prepared, not published — 2026-10-26
+
+User asks about missing version update. Prepared manifest0.7.0 and changelog with
+matching body/private temporary release file.57tests/28subtests PASS; official
+latest remains0.6.2, v0.7.0 tag absent. This local release candidate is not pushed
+or released. Paired Zetlight0.23.0 prepared. Formal publication approval pending;
+no HA integration reload/device change or automation activation. Fixed manual
+storm gain is not included/complete. Next GTS-R11 approved publication, strong
+reasoning. Publish only from isolated public branch.
+
+---
+
 ## Latest source candidate: GTS-R10 bounded weather gain — 2026-10-26
 
 Normal100 preserves the tuned24h curve; above100 adds gain from that baseline.

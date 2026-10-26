@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0 — 2026-10-26
+
+- Extend the tidal gain entity from10–100% to10–200%.100% preserves the tuned
+  daily curve; values above100 add relative weather gain rather than weakening
+  normal conditions first. Entity unique ID and storage key stay unchanged.
+- Keep the immutable24-hour baseline for repeated updates, restart and retry;
+ 100% restores it exactly. Reject invalid requested or persisted gain values.
+- Keep the existing raw power cap99 on scaled segments. This is a software bound,
+  not a measured safe flow limit; clipped peaks no longer preserve exact ratios.
+  Gain percentages do not establish proportional physical water flow.
+- Clarify the entity label as tidal gain.57 tests and28 subtests passed with
+  simulated transport/storage; no gain or storm hardware test is claimed.
+- Upgrade: install then restart/reload the integration at an approved time. Do
+  not delete overlay storage or recapture a boosted curve as your normal curve.
+  Weather blueprints require a separate import/update and entity-capability check.
+  Existing fixed-setpoint storm drafts are not a completed baseline-gain policy.
+  This release does not activate any weather automation or change gain by itself.
+
 ## 0.6.2
 
 - Serialize complete BLE operations. A later stop supersedes unfinished starts
