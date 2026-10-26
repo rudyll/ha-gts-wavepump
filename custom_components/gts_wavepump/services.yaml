@@ -38,9 +38,14 @@ storm_gain:
       name: Daily-baseline gain
       required: true
       selector:
-        number: {min: 100, max: 200, step: 5, unit_of_measurement: "%"}
+        number: {min: 100, max: 10000, step: 1, unit_of_measurement: "%"}
+    gain_basis:
+      name: Gain unit (App display percentage)
+      required: true
+      selector:
+        select: {options: [app_percent]}
     power_ceiling:
-      name: Raw power ceiling
+      name: Raw power ceiling (99 = App119 on firmware >4)
       required: true
       selector:
         number: {min: 1, max: 99, step: 1}

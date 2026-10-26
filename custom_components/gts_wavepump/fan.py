@@ -26,7 +26,7 @@ from homeassistant.helpers import config_validation as cv, entity_platform
 from homeassistant.util import dt as dt_util
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from . import GtsWavePumpCoordinator, protocol, storm
+from . import GtsWavePumpCoordinator, protocol, power, storm
 from .const import DOMAIN, POWER_DEFAULT_ON, POWER_MAX, POWER_MIN
 from .entity import GtsWavePumpEntity
 
@@ -68,7 +68,8 @@ async def async_setup_entry(
     platform.async_register_entity_service(
         SERVICE_STORM_GAIN,
         {
-            vol.Required("gain"): vol.All(vol.Coerce(float), vol.Range(min=100, max=200)),
+            vol.Required("gain_basis"): vol.In(["app_percent"]),
+            vol.Required("gain"): vol.All(vol.Coerce(float), vol.Range(min=100, max=10000)),
             vol.Required("power_ceiling"): vol.All(vol.Coerce(int), vol.Range(min=1, max=99)),
             vol.Optional("wave_mode", default="daily"): vol.In(["daily", "surge", "turbulence", "pulse"]),
             vol.Optional("expected_run_mode", default="tide"): vol.In(["tide", "manual"]),
@@ -127,7 +128,11 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
     @property
     def extra_state_attributes(self):
         return {"recovery_required": self.coordinator.device.command_error is not None,
-                "command_error": self.coordinator.device.command_error}
+                "command_error": self.coordinator.device.command_error,
+                "raw_power": self._current_power,
+                "app_output_percent": power.display_power(self._current_power, self._software_version)
+                    if self._current_power is not None and self._software_version is not None else None,
+                "max_app_output_percent": 119 if self._software_version is not None and self._software_version > 4 else 99}
 
     @property
     def percentage(self) -> int | None:
@@ -203,8 +208,10 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
 
     async def async_storm_gain(self, gain: float, power_ceiling: int,
                                wave_mode: str = "daily", expected_run_mode: str = "tide",
-                               clock_confirmed: bool = False) -> None:
+                               clock_confirmed: bool = False, gain_basis: str = "") -> None:
         """Apply one bounded, transient setpoint; never rewrite the daily curve."""
+        if gain_basis != "app_percent":
+            raise ValueError("explicit App-percentage gain basis required; update the automation")
         if clock_confirmed is not True:
             raise ValueError("confirm pump clock matches Home Assistant local time first")
         device = self.coordinator.device
@@ -230,10 +237,12 @@ class GtsWavePumpFan(GtsWavePumpEntity, FanEntity):
                 raise ValueError("complete current tidal schedule required")
             baseline = storm.daily_baseline(overlay._baseline,
                 [segment.power for segment in segments], overlay._attr_native_value)
+            if [segment.power for segment in segments] != power.scale_curve(baseline, overlay._attr_native_value, sw):
+                raise ValueError("external tidal curve edit; refusing retained storm baseline")
             # Resolve the hour after taking the operation lock, not at trigger time.
             hour = dt_util.now().hour
             target = storm.storm_target(baseline, hour, gain,
-                                       overlay._attr_native_value, power_ceiling)
+                                       overlay._attr_native_value, power_ceiling, sw)
             segment = segments[hour]
             if (segment.mode not in protocol.MANUAL_MODES or type(segment.period) is not int
                     or not 0 <= segment.period <= 255):

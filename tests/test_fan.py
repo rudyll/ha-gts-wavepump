@@ -29,6 +29,7 @@ def load_module(name, path):
 
 
 control = load_module('fan_control', ROOT / 'control.py')
+power = load_module('fan_power', ROOT / 'power.py')
 protocol = load_module("fan_test_protocol", ROOT / "protocol.py")
 const = load_module("fan_test_const", ROOT / "const.py")
 
@@ -55,7 +56,7 @@ def load_fan():
     isolated = ast.Module(body=[ast.ImportFrom(module="__future__", names=[
         ast.alias(name="annotations")], level=0), cls], type_ignores=[])
     ast.fix_missing_locations(isolated)
-    namespace = dict(asyncio=asyncio, _LOGGER=logging.getLogger("test"), protocol=protocol, GtsWavePumpEntity=Entity,
+    namespace = dict(asyncio=asyncio, _LOGGER=logging.getLogger("test"), protocol=protocol, power=power, GtsWavePumpEntity=Entity,
                      FanEntity=FanEntity, FanEntityFeature=Features,
                      POWER_DEFAULT_ON=const.POWER_DEFAULT_ON,
                      POWER_MIN=const.POWER_MIN, POWER_MAX=const.POWER_MAX)

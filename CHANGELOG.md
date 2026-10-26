@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — App-unit headroom correction
+
+- Separate raw0–99 from newer-firmware App nonzero raw+20 (max119). Calculate gain in App units and dynamic headroom from the full daily peak; integer step1, zeros retained,100% exact restore, no peak clipping. Legacy<=4 display remains raw with99 ceiling.
+- Fresh-read and reject external tidal edits before curve/storm writes. Require explicitapp_percent storm service basis and block ambiguous legacy persisted gains until explicit recovery. Update paired blueprints/instances before enabling; HA fan percentage compatibility retained.
+-75 tests/41subtests, paired native HA validation and three-baseline template-to-service simulations passed. No installation or physical-flow acceptance. See docs/app-power-gain.md.
+
 ## 0.7.0 — 2026-10-26
 
 - Extend the tidal gain entity from10–100% to10–200%.100% preserves the tuned

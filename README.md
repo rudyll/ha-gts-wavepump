@@ -134,3 +134,6 @@ python3 -m pytest tests/test_protocol.py -q
 ```
 
 The protocol tests have no Home Assistant dependency.
+
+
+Unreleased App-unit gain/headroom correction and migration: [docs/app-power-gain.md](docs/app-power-gain.md).

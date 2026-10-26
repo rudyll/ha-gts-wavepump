@@ -101,3 +101,6 @@ python3 -m pytest tests/test_protocol.py -q
 ```
 
 协议测试不依赖 Home Assistant。
+
+
+Unreleased App-unit gain/headroom correction and migration: [docs/app-power-gain.md](docs/app-power-gain.md).

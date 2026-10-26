@@ -88,3 +88,16 @@ Scope excludes HA installation/reload/import/activation and all device actions.
 Use isolated public GTS tree, never primary private acceptance-history branch.
 Success: remote versions/tags/final commit/official status/exact notes match.
 Next complete and record actual remote readback, strong reasoning.
+
+## GTS-R14 — App119% output and baseline-dependent headroom (2026-10-26)
+
+Source Rudy requests corrections across integration/blueprints/instances, confirms
+App119 selectable maximum; Codex/P0, linked ZetlightF35, supersedes F34 activation
+priority. SOURCE/TEST PREPARED, not released/installed. Dynamic full-day App-unit
+headroom, raw99 limit, immutable baseline, fresh external-edit guards, explicit
+storm gain_basis, legacy migration refusal.75tests/41subtests plus paired native/
+joint simulations PASS; no live pump/lamp action. Actual weather/storm metadata
+paused only, with persistent initial_statefalse and backup; candidate instances
+private/not applied. Next R14-D01/F35-D01 coordinated release/install approval,
+current lamp baseline confirmation, runtime verification and authorized resume,
+strong reasoning. No physical-safety or red-color interpretation claimed.

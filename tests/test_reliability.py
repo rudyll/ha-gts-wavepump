@@ -3,14 +3,14 @@ import ast,asyncio,copy,logging,unittest
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
-from test_fan import FanTests, protocol, load_module, ROOT
+from test_fan import FanTests, protocol, power, load_module, ROOT
 control=load_module('gts_test_control',ROOT/'control.py')
 
 def load_class(filename,name,**extra):
     node=next(n for n in ast.parse((ROOT/filename).read_text()).body if isinstance(n,ast.ClassDef) and n.name==name)
     tree=ast.Module(body=[ast.ImportFrom(module='__future__',names=[ast.alias(name='annotations')],level=0),node],type_ignores=[])
     ast.fix_missing_locations(tree)
-    ctx=dict(asyncio=asyncio,protocol=protocol,OperationGate=control.OperationGate,serialized=control.serialized,UpdateFailed=RuntimeError,RESPONSE_TIMEOUT=.05,_LOGGER=logging.getLogger('test'))
+    ctx=dict(asyncio=asyncio,protocol=protocol,power=power,OperationGate=control.OperationGate,serialized=control.serialized,UpdateFailed=RuntimeError,RESPONSE_TIMEOUT=.05,_LOGGER=logging.getLogger('test'))
     ctx.update(extra);exec(compile(tree,str(ROOT/filename),'exec'),ctx);return ctx[name]
 Device=load_class('__init__.py','GtsWavePumpDevice')
 
@@ -88,7 +88,8 @@ Number=load_class('number.py','TidalIntensityNumber',GtsWavePumpEntity=Base,Rest
 class BaselineTests(unittest.IsolatedAsyncioTestCase):
     async def test_partial_failure_reload_and_retry_keep_original(self):
         Store.saved={}
-        c=SimpleNamespace(hass=None,data=SimpleNamespace(tidal=[SimpleNamespace(power=80) for _ in range(24)]),device=SimpleNamespace(address='x',operations=control.OperationGate()),async_request_refresh=AsyncMock())
+        c=SimpleNamespace(hass=None,data=SimpleNamespace(software_version=17,tidal=[SimpleNamespace(power=80) for _ in range(24)]),device=SimpleNamespace(address='x',operations=control.OperationGate()),async_request_refresh=AsyncMock())
+        c.device.async_read_config=AsyncMock(side_effect=lambda sw:({},c.data.tidal))
         async def fail(powers):
             c.data.tidal=[SimpleNamespace(power=40 if i<12 else 80) for i in range(24)]
             raise OSError('partial write')
@@ -96,14 +97,16 @@ class BaselineTests(unittest.IsolatedAsyncioTestCase):
         first=Number(c)
         with self.assertRaises(OSError):await first.async_set_native_value(50)
         self.assertTrue(first.has_baseline)
-        second=Number(c);c.device.async_write_tidal_powers=AsyncMock()
+        second=Number(c)
+        async def applied(powers):c.data.tidal=[SimpleNamespace(power=p) for p in powers]
+        c.device.async_write_tidal_powers=AsyncMock(side_effect=applied)
         await second.async_set_native_value(50)
-        self.assertEqual(c.device.async_write_tidal_powers.await_args.args[0],[40]*24)
+        self.assertEqual(c.device.async_write_tidal_powers.await_args.args[0],[30]*24)
         await second.async_set_native_value(100)
         self.assertEqual(c.device.async_write_tidal_powers.await_args.args[0],[80]*24)
         self.assertFalse(second.has_baseline)
     async def test_missing_curve_refuses_before_write(self):
-        Store.saved={};c=SimpleNamespace(hass=None,data=SimpleNamespace(tidal=[]),device=SimpleNamespace(address='x',operations=control.OperationGate(),async_write_tidal_powers=AsyncMock()))
+        Store.saved={};c=SimpleNamespace(hass=None,data=SimpleNamespace(software_version=17,tidal=[]),device=SimpleNamespace(address='x',operations=control.OperationGate(),async_write_tidal_powers=AsyncMock()))
         with self.assertRaises(ValueError):await Number(c).async_set_native_value(50)
         c.device.async_write_tidal_powers.assert_not_awaited()
 

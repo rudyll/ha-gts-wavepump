@@ -1,3 +1,23 @@
+## Latest: GTS-R14 / ZetlightF35 App119 dynamic headroom prepared — 2026-10-26
+
+Rudy confirms119% is App selectable maximum, not merely red warning. Source uses
+raw99 and newer-firmware nonzero+20 App units, dynamic gain from daily maximum,
+fresh curve/conflict checks and explicit storm unit metadata. Legacy raw display
+retained.75tests/41subtests PASS; paired native HA2blueprints and actual-template→
+actual-service three-baseline simulations PASS. Software-only, NOT installed or
+released. No physical output/safety/flow acceptance. Guide docs/app-power-gain.md.
+
+Actual two idle weather/storm rules protectively OFF and initial_statefalse
+persisted without reload; user's restored lamp curve differs from oldHA baseline.
+No pump/lamp service, curve/preset write, adoption, restart or newmonitor. Private
+receipts/migration candidate retained in ignored Zetlight.private/headroom-20261026;
+public docs contain no actual bindings/curve. Source worktree is this public-isolated
+branch; NEVER push primary GTS private history. Existing0.7.0 manifest unchanged.
+Next F35-D01/R14-D01 coordinated publication/install approval and explicit current
+lamp baseline adoption, then runtime validation and authorized resume; strong reasoning.
+
+---
+
 ## Latest: paired formal publication authorized and in progress — 2026-10-26
 
 Rudy explicitly replies “可以” to publishing GTS0.7.0 and Zetlight0.23.0: push final
